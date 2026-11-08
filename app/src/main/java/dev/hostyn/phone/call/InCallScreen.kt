@@ -85,6 +85,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.material3.LocalContentColor
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.graphics.compositeOver
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -139,92 +142,106 @@ private fun InCallScreen(call: CallUi, others: List<CallUi>, audio: CallAudioSta
     val colors = MaterialTheme.colorScheme
     val showKeypad = keypad && call.phase == CallPhase.ACTIVE
 
+    // Opaque colors only: a translucent stop would mix with the window background, which follows
+    // the system theme rather than the app's. The content color makes text readable in dark theme.
+    val background = remember(colors) {
+        Brush.verticalGradient(
+            listOf(
+                colors.surface,
+                colors.surfaceContainer,
+                colors.primaryContainer.copy(alpha = 0.45f).compositeOver(colors.surfaceContainer),
+            ),
+        )
+    }
     Box(
         Modifier
             .fillMaxSize()
-            .background(Brush.verticalGradient(listOf(colors.surface, colors.surfaceContainer, colors.primaryContainer.copy(alpha = 0.55f)))),
+            .background(colors.surface)
+            .background(background),
     ) {
-        Column(
-            Modifier
-                .fillMaxSize()
-                .systemBarsPadding()
-                .padding(horizontal = 24.dp, vertical = 16.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-        ) {
-            if (held != null) HeldBanner(held)
-            if (ongoing != null) OngoingBanner(ongoing)
+        CompositionLocalProvider(LocalContentColor provides colors.onSurface) {
+            Column(
+                Modifier
+                    .fillMaxSize()
+                    .systemBarsPadding()
+                    .padding(horizontal = 24.dp, vertical = 16.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                if (held != null) HeldBanner(held)
+                if (ongoing != null) OngoingBanner(ongoing)
 
-            Spacer(Modifier.height(if (showKeypad) 16.dp else 40.dp))
-            StatusText(call)
-            Spacer(Modifier.height(if (showKeypad) 8.dp else 28.dp))
+                Spacer(Modifier.height(if (showKeypad) 16.dp else 40.dp))
+                StatusText(call)
+                Spacer(Modifier.height(if (showKeypad) 8.dp else 28.dp))
 
-            if (!showKeypad) {
-                CallerAvatar(call)
+                if (!showKeypad) {
+                    CallerAvatar(call)
+                    Spacer(Modifier.height(24.dp))
+                }
+                Text(
+                    call.name,
+                    style = if (showKeypad) MaterialTheme.typography.titleLarge else MaterialTheme.typography.headlineLarge,
+                    textAlign = TextAlign.Center,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                if (showKeypad) {
+                    Text(
+                        dtmf.ifEmpty { " " },
+                        style = MaterialTheme.typography.headlineMedium,
+                        color = colors.onSurfaceVariant,
+                        maxLines = 1,
+                        modifier = Modifier.padding(top = 8.dp),
+                    )
+                } else if (call.label != null) {
+                    Text(
+                        call.label,
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = colors.onSurfaceVariant,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.padding(top = 6.dp),
+                    )
+                }
+
+                Spacer(Modifier.weight(1f))
+
+                AnimatedContent(
+                    targetState = when {
+                        call.phase == CallPhase.SELECT_ACCOUNT -> 0
+                        call.phase == CallPhase.RINGING -> 1
+                        call.phase == CallPhase.ENDED -> 2
+                        showKeypad -> 3
+                        else -> 4
+                    },
+                    transitionSpec = { fadeIn(tween(220)) togetherWith fadeOut(tween(150)) },
+                    label = "controls",
+                ) { mode ->
+                    when (mode) {
+                        0 -> AccountPicker(call)
+                        1 -> IncomingActions(call, ongoing)
+                        2 -> Spacer(Modifier.height(120.dp))
+                        3 -> Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Dialpad(
+                                onKeyDown = { CallManager.startDtmf(call.id, it); dtmf += it },
+                                onKeyUp = { CallManager.stopDtmf(call.id) },
+                                keyHeight = 58.dp,
+                                keyColor = colors.surfaceContainerHighest.copy(alpha = 0.7f),
+                                modifier = Modifier.padding(horizontal = 8.dp),
+                            )
+                            TextButton(onClick = { keypad = false }, modifier = Modifier.padding(top = 4.dp)) {
+                                Text(stringResource(R.string.hide_keypad))
+                            }
+                        }
+                        else -> CallControls(call, held, audio, onKeypad = { keypad = true })
+                    }
+                }
+
+                if (call.phase != CallPhase.RINGING && call.phase != CallPhase.ENDED) {
+                    Spacer(Modifier.height(28.dp))
+                    RoundButton(Icons.Rounded.CallEnd, HangUpRed, stringResource(R.string.hang_up)) { CallManager.hangUp(call.id) }
+                }
                 Spacer(Modifier.height(24.dp))
             }
-            Text(
-                call.name,
-                style = if (showKeypad) MaterialTheme.typography.titleLarge else MaterialTheme.typography.headlineLarge,
-                textAlign = TextAlign.Center,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-            )
-            if (showKeypad) {
-                Text(
-                    dtmf.ifEmpty { " " },
-                    style = MaterialTheme.typography.headlineMedium,
-                    color = colors.onSurfaceVariant,
-                    maxLines = 1,
-                    modifier = Modifier.padding(top = 8.dp),
-                )
-            } else if (call.label != null) {
-                Text(
-                    call.label,
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = colors.onSurfaceVariant,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier.padding(top = 6.dp),
-                )
-            }
-
-            Spacer(Modifier.weight(1f))
-
-            AnimatedContent(
-                targetState = when {
-                    call.phase == CallPhase.SELECT_ACCOUNT -> 0
-                    call.phase == CallPhase.RINGING -> 1
-                    call.phase == CallPhase.ENDED -> 2
-                    showKeypad -> 3
-                    else -> 4
-                },
-                transitionSpec = { fadeIn(tween(220)) togetherWith fadeOut(tween(150)) },
-                label = "controls",
-            ) { mode ->
-                when (mode) {
-                    0 -> AccountPicker(call)
-                    1 -> IncomingActions(call, ongoing)
-                    2 -> Spacer(Modifier.height(120.dp))
-                    3 -> Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Dialpad(
-                            onKeyDown = { CallManager.startDtmf(call.id, it); dtmf += it },
-                            onKeyUp = { CallManager.stopDtmf(call.id) },
-                            keyHeight = 58.dp,
-                            keyColor = colors.surfaceContainerHighest.copy(alpha = 0.7f),
-                            modifier = Modifier.padding(horizontal = 8.dp),
-                        )
-                        TextButton(onClick = { keypad = false }, modifier = Modifier.padding(top = 4.dp)) {
-                            Text(stringResource(R.string.hide_keypad))
-                        }
-                    }
-                    else -> CallControls(call, held, audio, onKeypad = { keypad = true })
-                }
-            }
-
-            if (call.phase != CallPhase.RINGING && call.phase != CallPhase.ENDED) {
-                Spacer(Modifier.height(28.dp))
-                RoundButton(Icons.Rounded.CallEnd, HangUpRed, stringResource(R.string.hang_up)) { CallManager.hangUp(call.id) }
-            }
-            Spacer(Modifier.height(24.dp))
         }
     }
 }
