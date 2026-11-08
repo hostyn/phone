@@ -1,5 +1,7 @@
 package dev.hostyn.phone.ui.components
 
+import dev.hostyn.phone.R
+import androidx.compose.ui.res.stringResource
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -76,7 +78,7 @@ fun SearchPill(
     query: String,
     onQuery: (String) -> Unit,
     modifier: Modifier = Modifier,
-    placeholder: String = "Search contacts",
+    placeholder: String = stringResource(R.string.search_contacts),
 ) {
     val focus = LocalFocusManager.current
     Surface(
@@ -102,7 +104,7 @@ fun SearchPill(
             }
             AnimatedVisibility(query.isNotEmpty(), enter = fadeIn(), exit = fadeOut()) {
                 IconButton(onClick = { onQuery(""); focus.clearFocus() }) {
-                    Icon(Icons.Rounded.Close, "Clear search")
+                    Icon(Icons.Rounded.Close, stringResource(R.string.clear_search))
                 }
             }
         }

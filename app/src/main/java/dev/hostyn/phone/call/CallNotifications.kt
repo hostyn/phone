@@ -20,12 +20,12 @@ object CallNotifications {
     fun createChannels(context: Context) {
         val nm = context.getSystemService(NotificationManager::class.java)
         // The system (Telecom) already plays the ringtone and vibrates: channels are silent.
-        val incoming = NotificationChannel(CHANNEL_INCOMING, "Incoming calls", NotificationManager.IMPORTANCE_HIGH).apply {
+        val incoming = NotificationChannel(CHANNEL_INCOMING, context.getString(R.string.channel_incoming), NotificationManager.IMPORTANCE_HIGH).apply {
             setSound(null, null)
             enableVibration(false)
             lockscreenVisibility = Notification.VISIBILITY_PUBLIC
         }
-        val ongoing = NotificationChannel(CHANNEL_ONGOING, "Ongoing calls", NotificationManager.IMPORTANCE_DEFAULT).apply {
+        val ongoing = NotificationChannel(CHANNEL_ONGOING, context.getString(R.string.channel_ongoing), NotificationManager.IMPORTANCE_DEFAULT).apply {
             setSound(null, null)
             enableVibration(false)
             lockscreenVisibility = Notification.VISIBILITY_PUBLIC
@@ -62,7 +62,7 @@ object CallNotifications {
                         action(context, CallActionReceiver.ACTION_ANSWER, call.id),
                     )
                 )
-                .setContentText(call.label ?: "Incoming call")
+                .setContentText(call.label ?: context.getString(R.string.incoming_call))
                 .setPriority(NotificationCompat.PRIORITY_MAX)
                 // Locked/off screen: opens the call full screen.
                 // Screen on and unlocked: Android shows it as a heads-up notification.
@@ -79,10 +79,10 @@ object CallNotifications {
                 .setSilent(true)
                 .setContentText(
                     when (call.phase) {
-                        CallPhase.ACTIVE -> "Ongoing call"
-                        CallPhase.HOLDING -> "On hold"
-                        CallPhase.SELECT_ACCOUNT -> "Choose a SIM"
-                        else -> "Calling…"
+                        CallPhase.ACTIVE -> context.getString(R.string.ongoing_call)
+                        CallPhase.HOLDING -> context.getString(R.string.on_hold)
+                        CallPhase.SELECT_ACCOUNT -> context.getString(R.string.choose_sim)
+                        else -> context.getString(R.string.calling)
                     }
                 )
             if (call.phase == CallPhase.ACTIVE && call.connectTime > 0) {

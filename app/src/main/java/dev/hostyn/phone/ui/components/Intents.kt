@@ -1,5 +1,6 @@
 package dev.hostyn.phone.ui.components
 
+import dev.hostyn.phone.R
 import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
@@ -10,7 +11,7 @@ private fun Context.launch(intent: Intent) {
     try {
         startActivity(intent)
     } catch (_: ActivityNotFoundException) {
-        Toast.makeText(this, "No app can handle this action", Toast.LENGTH_SHORT).show()
+        Toast.makeText(this, getString(R.string.error_no_app), Toast.LENGTH_SHORT).show()
     }
 }
 

@@ -1,5 +1,7 @@
 package dev.hostyn.phone.ui.dialer
 
+import dev.hostyn.phone.R
+import androidx.compose.ui.res.stringResource
 import android.Manifest
 import android.content.Context
 import android.content.pm.PackageManager
@@ -147,7 +149,7 @@ fun DialerScreen(
     Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.surface) {
         Column(Modifier.fillMaxSize().systemBarsPadding().padding(bottom = 20.dp)) {
             IconButton(onClick = onBack, modifier = Modifier.padding(4.dp)) {
-                Icon(Icons.AutoMirrored.Rounded.ArrowBack, "Back")
+                Icon(Icons.AutoMirrored.Rounded.ArrowBack, stringResource(R.string.back))
             }
 
             // Suggestions, pinned to the bottom of the free space.
@@ -183,10 +185,10 @@ fun DialerScreen(
                                 .combinedClickable(
                                     onClick = { number = number.dropLast(1) },
                                     onLongClick = { number = "" },
-                                    onClickLabel = "Delete",
+                                    onClickLabel = stringResource(R.string.backspace),
                                 ),
                         ) {
-                            Icon(Icons.AutoMirrored.Rounded.Backspace, "Delete", tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Icon(Icons.AutoMirrored.Rounded.Backspace, stringResource(R.string.backspace), tint = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                     }
                 }
@@ -197,7 +199,7 @@ fun DialerScreen(
                     TextButton(onClick = { onAddContact(number) }) {
                         Icon(Icons.Rounded.PersonAdd, null, modifier = Modifier.size(18.dp))
                         Spacer(Modifier.width(8.dp))
-                        Text("Add to contacts")
+                        Text(stringResource(R.string.add_to_contacts))
                     }
                 }
             }
@@ -225,7 +227,7 @@ fun DialerScreen(
                     shadowElevation = 2.dp,
                     modifier = Modifier.size(width = 112.dp, height = 68.dp),
                 ) {
-                    Box(contentAlignment = Alignment.Center) { Icon(Icons.Rounded.Call, "Call", modifier = Modifier.size(30.dp)) }
+                    Box(contentAlignment = Alignment.Center) { Icon(Icons.Rounded.Call, stringResource(R.string.call), modifier = Modifier.size(30.dp)) }
                 }
             }
         }

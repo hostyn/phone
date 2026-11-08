@@ -1,5 +1,7 @@
 package dev.hostyn.phone.ui.components
 
+import dev.hostyn.phone.R
+import androidx.compose.ui.res.stringResource
 import android.Manifest
 import android.app.role.RoleManager
 import android.content.Context
@@ -49,7 +51,7 @@ fun Context.placeCall(number: String) {
     try {
         getSystemService(TelecomManager::class.java).placeCall(Uri.fromParts("tel", number, null), Bundle())
     } catch (_: SecurityException) {
-        Toast.makeText(this, "Missing permission to make calls", Toast.LENGTH_SHORT).show()
+        Toast.makeText(this, getString(R.string.error_call_permission), Toast.LENGTH_SHORT).show()
     }
 }
 
@@ -122,16 +124,16 @@ fun DefaultDialerBanner(modifier: Modifier = Modifier) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(Icons.Rounded.Call, null, tint = MaterialTheme.colorScheme.onSecondaryContainer)
                 Spacer(Modifier.width(12.dp))
-                Text("Make Phone your calling app", style = MaterialTheme.typography.titleMedium)
+                Text(stringResource(R.string.default_dialer_title), style = MaterialTheme.typography.titleMedium)
             }
             Spacer(Modifier.height(8.dp))
             Text(
-                "Set it as your default phone app to make and receive calls and see your recents.",
+                stringResource(R.string.default_dialer_body),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSecondaryContainer,
             )
             Spacer(Modifier.height(16.dp))
-            Button(onClick = request) { Text("Set as default") }
+            Button(onClick = request) { Text(stringResource(R.string.set_as_default)) }
         }
     }
 }

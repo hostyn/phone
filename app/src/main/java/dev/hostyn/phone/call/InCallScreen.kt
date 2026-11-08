@@ -1,5 +1,7 @@
 package dev.hostyn.phone.call
 
+import dev.hostyn.phone.R
+import androidx.compose.ui.res.stringResource
 import android.telecom.CallAudioState
 import android.telecom.PhoneAccountHandle
 import android.telecom.TelecomManager
@@ -187,7 +189,7 @@ private fun InCallScreen(call: CallUi, held: CallUi?, audio: CallAudioState?) {
                             modifier = Modifier.padding(horizontal = 8.dp),
                         )
                         TextButton(onClick = { keypad = false }, modifier = Modifier.padding(top = 4.dp)) {
-                            Text("Hide keypad")
+                            Text(stringResource(R.string.hide_keypad))
                         }
                     }
                     else -> CallControls(call, audio, onKeypad = { keypad = true })
@@ -196,7 +198,7 @@ private fun InCallScreen(call: CallUi, held: CallUi?, audio: CallAudioState?) {
 
             if (call.phase != CallPhase.RINGING && call.phase != CallPhase.ENDED) {
                 Spacer(Modifier.height(28.dp))
-                RoundButton(Icons.Rounded.CallEnd, HangUpRed, "Hang up") { CallManager.hangUp(call.id) }
+                RoundButton(Icons.Rounded.CallEnd, HangUpRed, stringResource(R.string.hang_up)) { CallManager.hangUp(call.id) }
             }
             Spacer(Modifier.height(24.dp))
         }
@@ -206,12 +208,12 @@ private fun InCallScreen(call: CallUi, held: CallUi?, audio: CallAudioState?) {
 @Composable
 private fun StatusText(call: CallUi) {
     val text = when (call.phase) {
-        CallPhase.RINGING -> "Incoming call"
-        CallPhase.SELECT_ACCOUNT -> "Choose a SIM for this call"
-        CallPhase.DIALING -> "Calling…"
-        CallPhase.HOLDING -> "On hold"
-        CallPhase.ENDED -> call.endReason ?: "Call ended"
-        CallPhase.ACTIVE -> if (call.connectTime > 0) elapsed(call.connectTime) else "Connected"
+        CallPhase.RINGING -> stringResource(R.string.incoming_call)
+        CallPhase.SELECT_ACCOUNT -> stringResource(R.string.choose_sim_for_call)
+        CallPhase.DIALING -> stringResource(R.string.calling)
+        CallPhase.HOLDING -> stringResource(R.string.on_hold)
+        CallPhase.ENDED -> call.endReason ?: stringResource(R.string.call_ended)
+        CallPhase.ACTIVE -> if (call.connectTime > 0) elapsed(call.connectTime) else stringResource(R.string.connected)
     }
     Text(
         text,
@@ -281,9 +283,9 @@ private fun IncomingActions(call: CallUi) {
         horizontalArrangement = Arrangement.SpaceEvenly,
         verticalAlignment = Alignment.Bottom,
     ) {
-        RoundButton(Icons.Rounded.CallEnd, HangUpRed, "Decline") { CallManager.reject(call.id) }
+        RoundButton(Icons.Rounded.CallEnd, HangUpRed, stringResource(R.string.decline)) { CallManager.reject(call.id) }
         RoundButton(
-            Icons.Rounded.Call, AnswerGreen, "Answer",
+            Icons.Rounded.Call, AnswerGreen, stringResource(R.string.answer),
             modifier = Modifier.graphicsLayer { translationY = -bounce * 10.dp.toPx() },
         ) { CallManager.answer(call.id) }
     }
@@ -325,26 +327,30 @@ private fun CallControls(call: CallUi, audio: CallAudioState?, onKeypad: () -> U
     val hasBluetooth = supported and CallAudioState.ROUTE_BLUETOOTH != 0
     val hasWired = supported and CallAudioState.ROUTE_WIRED_HEADSET != 0
     var routeMenu by remember { mutableStateOf(false) }
+    val bluetoothLabel = stringResource(R.string.bluetooth)
+    val speakerLabel = stringResource(R.string.speaker)
+    val headsetLabel = stringResource(R.string.headset)
+    val earpieceLabel = stringResource(R.string.earpiece)
     val active = call.phase == CallPhase.ACTIVE || call.phase == CallPhase.HOLDING
 
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
-        ToggleControl(Icons.Rounded.MicOff, "Mute", checked = muted) { CallManager.setMuted(!muted) }
-        ToggleControl(Icons.Rounded.Dialpad, "Keypad", checked = false, enabled = call.phase == CallPhase.ACTIVE, onClick = onKeypad)
+        ToggleControl(Icons.Rounded.MicOff, stringResource(R.string.mute), checked = muted) { CallManager.setMuted(!muted) }
+        ToggleControl(Icons.Rounded.Dialpad, stringResource(R.string.keypad), checked = false, enabled = call.phase == CallPhase.ACTIVE, onClick = onKeypad)
         Box {
             if (hasBluetooth) {
                 val (icon, label) = when (route) {
-                    CallAudioState.ROUTE_BLUETOOTH -> Icons.Rounded.Bluetooth to "Bluetooth"
-                    CallAudioState.ROUTE_SPEAKER -> Icons.AutoMirrored.Rounded.VolumeUp to "Speaker"
-                    CallAudioState.ROUTE_WIRED_HEADSET -> Icons.Rounded.Headset to "Headset"
-                    else -> Icons.Rounded.PhoneInTalk to "Phone"
+                    CallAudioState.ROUTE_BLUETOOTH -> Icons.Rounded.Bluetooth to bluetoothLabel
+                    CallAudioState.ROUTE_SPEAKER -> Icons.AutoMirrored.Rounded.VolumeUp to speakerLabel
+                    CallAudioState.ROUTE_WIRED_HEADSET -> Icons.Rounded.Headset to headsetLabel
+                    else -> Icons.Rounded.PhoneInTalk to earpieceLabel
                 }
                 ToggleControl(icon, label, checked = route != CallAudioState.ROUTE_EARPIECE) { routeMenu = true }
                 DropdownMenu(expanded = routeMenu, onDismissRequest = { routeMenu = false }) {
                     val options = buildList {
-                        add(Triple(CallAudioState.ROUTE_BLUETOOTH, "Bluetooth", Icons.Rounded.Bluetooth))
-                        add(Triple(CallAudioState.ROUTE_SPEAKER, "Speaker", Icons.AutoMirrored.Rounded.VolumeUp))
-                        if (hasWired) add(Triple(CallAudioState.ROUTE_WIRED_HEADSET, "Headset", Icons.Rounded.Headset))
-                        else add(Triple(CallAudioState.ROUTE_EARPIECE, "Phone", Icons.Rounded.PhoneInTalk))
+                        add(Triple(CallAudioState.ROUTE_BLUETOOTH, bluetoothLabel, Icons.Rounded.Bluetooth))
+                        add(Triple(CallAudioState.ROUTE_SPEAKER, speakerLabel, Icons.AutoMirrored.Rounded.VolumeUp))
+                        if (hasWired) add(Triple(CallAudioState.ROUTE_WIRED_HEADSET, headsetLabel, Icons.Rounded.Headset))
+                        else add(Triple(CallAudioState.ROUTE_EARPIECE, earpieceLabel, Icons.Rounded.PhoneInTalk))
                     }
                     options.forEach { (r, name, ic) ->
                         DropdownMenuItem(
@@ -357,13 +363,13 @@ private fun CallControls(call: CallUi, audio: CallAudioState?, onKeypad: () -> U
                 }
             } else {
                 val speaker = route == CallAudioState.ROUTE_SPEAKER
-                ToggleControl(Icons.AutoMirrored.Rounded.VolumeUp, "Speaker", checked = speaker) {
+                ToggleControl(Icons.AutoMirrored.Rounded.VolumeUp, speakerLabel, checked = speaker) {
                     CallManager.setRoute(if (speaker) CallAudioState.ROUTE_WIRED_OR_EARPIECE else CallAudioState.ROUTE_SPEAKER)
                 }
             }
         }
         val onHold = call.phase == CallPhase.HOLDING
-        ToggleControl(Icons.Rounded.Pause, if (onHold) "Resume" else "Hold", checked = onHold, enabled = active && call.canHold) {
+        ToggleControl(Icons.Rounded.Pause, if (onHold) stringResource(R.string.resume) else stringResource(R.string.hold), checked = onHold, enabled = active && call.canHold) {
             CallManager.setHold(call.id, !onHold)
         }
     }
@@ -412,13 +418,13 @@ private fun HeldBanner(held: CallUi) {
             Icon(Icons.Rounded.Pause, null, tint = MaterialTheme.colorScheme.primary)
             Spacer(Modifier.width(12.dp))
             Column(Modifier.weight(1f)) {
-                Text("On hold", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(stringResource(R.string.on_hold), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Text(held.name, style = MaterialTheme.typography.bodyLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
             TextButton(onClick = { CallManager.setHold(held.id, false) }) {
                 Icon(Icons.Rounded.SwapCalls, null, modifier = Modifier.size(18.dp))
                 Spacer(Modifier.width(6.dp))
-                Text("Swap")
+                Text(stringResource(R.string.swap))
             }
         }
     }
@@ -431,7 +437,7 @@ private fun AccountPicker(call: CallUi) {
         val tm = context.getSystemService(TelecomManager::class.java)
         call.accounts.mapIndexed { i, h ->
             val label = try { tm.getPhoneAccount(h)?.label?.toString() } catch (_: Exception) { null }
-            h to (label ?: "SIM ${i + 1}")
+            h to (label ?: context.getString(R.string.sim_number, i + 1))
         }
     }
     Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -452,7 +458,7 @@ private fun AccountPicker(call: CallUi) {
             }
         }
         if (accounts.isEmpty()) {
-            Text("No SIM available", color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(stringResource(R.string.no_sim), color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
 }

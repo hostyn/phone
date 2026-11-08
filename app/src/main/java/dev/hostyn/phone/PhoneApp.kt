@@ -7,7 +7,7 @@ import dev.hostyn.phone.data.ContactsRepository
 
 class PhoneApp : Application() {
     val repository by lazy { ContactsRepository(contentResolver) }
-    val callLog by lazy { CallLogRepository(contentResolver) }
+    val callLog by lazy { CallLogRepository(this) }
 
     override fun onCreate() {
         super.onCreate()

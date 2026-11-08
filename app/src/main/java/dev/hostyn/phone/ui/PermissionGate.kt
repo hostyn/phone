@@ -1,5 +1,7 @@
 package dev.hostyn.phone.ui
 
+import dev.hostyn.phone.R
+import androidx.compose.ui.res.stringResource
 import android.Manifest
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -89,22 +91,22 @@ fun PermissionGate(content: @Composable () -> Unit) {
                 }
             }
             Spacer(Modifier.height(28.dp))
-            Text("All your contacts in one place", style = MaterialTheme.typography.headlineSmall, textAlign = TextAlign.Center)
+            Text(stringResource(R.string.permission_title), style = MaterialTheme.typography.headlineSmall, textAlign = TextAlign.Center)
             Spacer(Modifier.height(12.dp))
             Text(
-                "To show and edit your contacts, the app needs access to them. Nothing leaves your phone.",
+                stringResource(R.string.permission_body),
                 style = MaterialTheme.typography.bodyLarge,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center,
             )
             Spacer(Modifier.height(32.dp))
-            Button(onClick = { launcher.launch(RequestedPerms) }) { Text("Allow access") }
+            Button(onClick = { launcher.launch(RequestedPerms) }) { Text(stringResource(R.string.allow_access)) }
             if (denials >= 2) {
                 TextButton(onClick = {
                     context.startActivity(
                         Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.fromParts("package", context.packageName, null))
                     )
-                }) { Text("Open settings") }
+                }) { Text(stringResource(R.string.open_settings)) }
             }
         }
     }

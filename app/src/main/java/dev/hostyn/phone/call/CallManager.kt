@@ -1,5 +1,6 @@
 package dev.hostyn.phone.call
 
+import dev.hostyn.phone.R
 import android.content.Context
 import android.graphics.Bitmap
 import android.os.Build
@@ -137,10 +138,10 @@ object CallManager {
         val name = info?.name
             ?: d.callerDisplayName?.takeIf { it.isNotBlank() }
             ?: formatted.ifBlank {
-                if (d.handlePresentation == TelecomManager.PRESENTATION_RESTRICTED) "Private number" else "Unknown"
+                ctx?.getString(if (d.handlePresentation == TelecomManager.PRESENTATION_RESTRICTED) R.string.private_number else R.string.unknown).orEmpty()
             }
         val label = when {
-            info != null -> listOf(ContactField(number, info.type, info.label).phoneLabel(), formatted)
+            info != null -> listOf(ctx?.let { ContactField(number, info.type, info.label).phoneLabel(it) }.orEmpty(), formatted)
                 .filter { it.isNotBlank() }.joinToString(" · ")
             name != formatted && formatted.isNotBlank() -> formatted
             else -> null

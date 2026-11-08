@@ -1,5 +1,8 @@
 package dev.hostyn.phone.ui.home
 
+import androidx.annotation.StringRes
+import dev.hostyn.phone.R
+import androidx.compose.ui.res.stringResource
 import android.content.Context
 import androidx.compose.animation.Crossfade
 import androidx.compose.foundation.layout.padding
@@ -38,11 +41,11 @@ import dev.hostyn.phone.ui.components.rememberCallLauncher
 import dev.hostyn.phone.ui.contacts.ContactsTab
 import dev.hostyn.phone.ui.recents.RecentsTab
 
-private class Tab(val label: String, val selected: ImageVector, val unselected: ImageVector)
+private class Tab(@StringRes val label: Int, val selected: ImageVector, val unselected: ImageVector)
 
 private val Tabs = listOf(
-    Tab("Recents", Icons.Rounded.Schedule, Icons.Outlined.Schedule),
-    Tab("Contacts", Icons.Rounded.Person, Icons.Outlined.Person),
+    Tab(R.string.tab_recents, Icons.Rounded.Schedule, Icons.Outlined.Schedule),
+    Tab(R.string.tab_contacts, Icons.Rounded.Person, Icons.Outlined.Person),
 )
 
 @Composable
@@ -82,7 +85,7 @@ fun HomeScreen(
                             if (i == 0) query = ""
                         },
                         icon = { Icon(if (tab == i) t.selected else t.unselected, null) },
-                        label = { Text(t.label) },
+                        label = { Text(stringResource(t.label)) },
                     )
                 }
             }
@@ -94,7 +97,7 @@ fun HomeScreen(
                 containerColor = MaterialTheme.colorScheme.primaryContainer,
                 contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
             ) {
-                Icon(Icons.Rounded.Dialpad, "Keypad")
+                Icon(Icons.Rounded.Dialpad, stringResource(R.string.keypad))
             }
         },
     ) { padding ->

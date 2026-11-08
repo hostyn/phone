@@ -1,5 +1,7 @@
 package dev.hostyn.phone.ui.contacts
 
+import dev.hostyn.phone.R
+import androidx.compose.ui.res.stringResource
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -99,27 +101,27 @@ fun ContactsTab(
             item(key = "header") { header() }
             item(key = "create") { CreateRow(onCreate) }
             if (favorites.isNotEmpty()) {
-                item(key = "fav_title") { SectionTitle("Favorites") }
+                item(key = "fav_title") { SectionTitle(stringResource(R.string.favorites)) }
                 item(key = "fav_row") { FavoritesRow(favorites, onOpen) }
             }
             if (all.isEmpty()) {
                 item(key = "empty") {
                     EmptyState(
                         Icons.Rounded.PersonSearch,
-                        "No contacts yet",
-                        "Tap “Create contact” to add your first one.",
+                        stringResource(R.string.no_contacts_title),
+                        stringResource(R.string.no_contacts_body),
                         Modifier.fillMaxWidth().padding(top = 48.dp),
                     )
                 }
             } else {
-                item(key = "all_title") { SectionTitle("All · ${all.size}", Modifier.padding(top = 8.dp)) }
+                item(key = "all_title") { SectionTitle(stringResource(R.string.all_count, all.size), Modifier.padding(top = 8.dp)) }
             }
         } else if (rows.isEmpty()) {
             item(key = "no_results") {
                 EmptyState(
                     Icons.Rounded.PersonSearch,
-                    "No results",
-                    "No contacts match “${query.trim()}”.",
+                    stringResource(R.string.no_results),
+                    stringResource(R.string.no_results_body, query.trim()),
                     Modifier.fillMaxWidth().padding(top = 48.dp),
                 )
             }
@@ -155,7 +157,7 @@ private fun CreateRow(onCreate: () -> Unit) {
             }
         }
         Spacer(Modifier.width(16.dp))
-        Text("Create contact", style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.primary)
+        Text(stringResource(R.string.create_contact), style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.primary)
     }
 }
 

@@ -1,5 +1,7 @@
 package dev.hostyn.phone.ui.detail
 
+import dev.hostyn.phone.R
+import androidx.compose.ui.res.stringResource
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
@@ -102,9 +104,10 @@ fun DetailScreen(
 
     val contact = state as? ContactDetail
 
+    val copiedText = stringResource(R.string.copied)
     fun copy(text: String) {
         clipboard.setText(AnnotatedString(text))
-        scope.launch { snackbar.showSnackbar("Copied") }
+        scope.launch { snackbar.showSnackbar(copiedText) }
     }
 
     Scaffold(
@@ -115,20 +118,20 @@ fun DetailScreen(
                 title = {},
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.surface),
                 navigationIcon = {
-                    IconButton(onClick = leave) { Icon(Icons.AutoMirrored.Rounded.ArrowBack, "Back") }
+                    IconButton(onClick = leave) { Icon(Icons.AutoMirrored.Rounded.ArrowBack, stringResource(R.string.back)) }
                 },
                 actions = {
                     if (contact != null) {
                         IconButton(onClick = { scope.launch { repo.setStarred(contact.id, !contact.starred) } }) {
-                            if (contact.starred) Icon(Icons.Rounded.Star, "Remove from favorites", tint = MaterialTheme.colorScheme.primary)
-                            else Icon(Icons.Rounded.StarOutline, "Add to favorites")
+                            if (contact.starred) Icon(Icons.Rounded.Star, stringResource(R.string.remove_favorite), tint = MaterialTheme.colorScheme.primary)
+                            else Icon(Icons.Rounded.StarOutline, stringResource(R.string.add_favorite))
                         }
-                        IconButton(onClick = onEdit) { Icon(Icons.Rounded.Edit, "Edit") }
+                        IconButton(onClick = onEdit) { Icon(Icons.Rounded.Edit, stringResource(R.string.edit)) }
                         Box {
-                            IconButton(onClick = { menu = true }) { Icon(Icons.Rounded.MoreVert, "More options") }
+                            IconButton(onClick = { menu = true }) { Icon(Icons.Rounded.MoreVert, stringResource(R.string.more_options)) }
                             DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
                                 DropdownMenuItem(
-                                    text = { Text("Delete") },
+                                    text = { Text(stringResource(R.string.delete)) },
                                     leadingIcon = { Icon(Icons.Rounded.Delete, null) },
                                     onClick = { menu = false; confirmDelete = true },
                                 )
@@ -156,7 +159,7 @@ fun DetailScreen(
             ContactAvatar(contact.displayName, contact.photoUri, contact.id, size = 128.dp)
             Spacer(Modifier.height(20.dp))
             Text(
-                contact.displayName.ifBlank { "No name" },
+                contact.displayName.ifBlank { stringResource(R.string.no_name) },
                 style = MaterialTheme.typography.headlineMedium,
                 textAlign = TextAlign.Center,
                 modifier = Modifier.padding(horizontal = 24.dp),
@@ -166,15 +169,15 @@ fun DetailScreen(
             val firstPhone = contact.phones.firstOrNull()?.value
             val firstEmail = contact.emails.firstOrNull()?.value
             Row(horizontalArrangement = Arrangement.spacedBy(28.dp)) {
-                QuickAction(Icons.Rounded.Call, "Call", firstPhone != null) { firstPhone?.let(placeCall) }
-                QuickAction(Icons.AutoMirrored.Rounded.Message, "Message", firstPhone != null) { firstPhone?.let(context::sms) }
-                QuickAction(Icons.Rounded.MailOutline, "Email", firstEmail != null) { firstEmail?.let(context::email) }
+                QuickAction(Icons.Rounded.Call, stringResource(R.string.call), firstPhone != null) { firstPhone?.let(placeCall) }
+                QuickAction(Icons.AutoMirrored.Rounded.Message, stringResource(R.string.message), firstPhone != null) { firstPhone?.let(context::sms) }
+                QuickAction(Icons.Rounded.MailOutline, stringResource(R.string.email), firstEmail != null) { firstEmail?.let(context::email) }
             }
             Spacer(Modifier.height(28.dp))
 
             if (contact.phones.isEmpty() && contact.emails.isEmpty()) {
                 Text(
-                    "This contact has no phone number or email.",
+                    stringResource(R.string.contact_no_info),
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     style = MaterialTheme.typography.bodyMedium,
                 )
@@ -186,7 +189,7 @@ fun DetailScreen(
                 ) {
                     Column(Modifier.padding(vertical = 8.dp)) {
                         Text(
-                            "Contact info",
+                            stringResource(R.string.contact_info),
                             style = MaterialTheme.typography.titleSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.padding(start = 20.dp, top = 12.dp, bottom = 4.dp),
@@ -195,12 +198,12 @@ fun DetailScreen(
                             InfoRow(
                                 icon = Icons.Rounded.Phone,
                                 value = formatPhone(context, p.value),
-                                label = p.phoneLabel(),
+                                label = p.phoneLabel(context),
                                 onClick = { placeCall(p.value) },
                                 onLongClick = { copy(p.value) },
                                 trailing = {
                                     IconButton(onClick = { context.sms(p.value) }) {
-                                        Icon(Icons.AutoMirrored.Rounded.Message, "Send message")
+                                        Icon(Icons.AutoMirrored.Rounded.Message, stringResource(R.string.send_message))
                                     }
                                 },
                             )
@@ -209,7 +212,7 @@ fun DetailScreen(
                             InfoRow(
                                 icon = Icons.Rounded.Email,
                                 value = e.value,
-                                label = e.emailLabel(),
+                                label = e.emailLabel(context),
                                 onClick = { context.email(e.value) },
                                 onLongClick = { copy(e.value) },
                             )
@@ -224,8 +227,8 @@ fun DetailScreen(
         AlertDialog(
             onDismissRequest = { confirmDelete = false },
             icon = { Icon(Icons.Rounded.Delete, null) },
-            title = { Text("Delete contact?") },
-            text = { Text("${contact.displayName} will be deleted from this device and your synced accounts.") },
+            title = { Text(stringResource(R.string.delete_contact_title)) },
+            text = { Text(stringResource(R.string.delete_contact_message, contact.displayName)) },
             confirmButton = {
                 TextButton(
                     enabled = !deleting,
@@ -233,9 +236,9 @@ fun DetailScreen(
                         deleting = true
                         scope.launch { repo.delete(contact.id); leave() }
                     },
-                ) { Text("Delete") }
+                ) { Text(stringResource(R.string.delete)) }
             },
-            dismissButton = { TextButton(onClick = { confirmDelete = false }) { Text("Cancel") } },
+            dismissButton = { TextButton(onClick = { confirmDelete = false }) { Text(stringResource(R.string.cancel)) } },
         )
     }
 }

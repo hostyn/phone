@@ -1,5 +1,7 @@
 package dev.hostyn.phone.ui.edit
 
+import dev.hostyn.phone.R
+import androidx.compose.ui.res.stringResource
 import android.provider.ContactsContract.CommonDataKinds.Email
 import android.provider.ContactsContract.CommonDataKinds.Phone
 import androidx.activity.compose.BackHandler
@@ -156,26 +158,27 @@ fun EditScreen(
     val requestClose: () -> Unit = { if (vm.isDirty) { confirmDiscard = true } else { onClose() } }
     BackHandler(onBack = requestClose)
 
+    val saveError = stringResource(R.string.error_save_contact)
     fun save() = vm.save(
         onDone = { id -> if (vm.isNew && id != null) onCreated(id) else onClose() },
-        onError = { Toast.makeText(context, "Couldn't save the contact", Toast.LENGTH_SHORT).show() },
+        onError = { Toast.makeText(context, saveError, Toast.LENGTH_SHORT).show() },
     )
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.surface,
         topBar = {
             TopAppBar(
-                title = { Text(if (vm.isNew) "New contact" else "Edit contact") },
+                title = { Text(if (vm.isNew) stringResource(R.string.new_contact) else stringResource(R.string.edit_contact)) },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.surface),
                 navigationIcon = {
-                    IconButton(onClick = requestClose) { Icon(Icons.Rounded.Close, "Close") }
+                    IconButton(onClick = requestClose) { Icon(Icons.Rounded.Close, stringResource(R.string.close)) }
                 },
                 actions = {
                     Button(
                         onClick = ::save,
                         enabled = vm.canSave,
                         modifier = Modifier.padding(end = 8.dp),
-                    ) { Text("Save") }
+                    ) { Text(stringResource(R.string.save)) }
                 },
             )
         },
@@ -210,7 +213,7 @@ fun EditScreen(
                 OutlinedTextField(
                     value = vm.given,
                     onValueChange = { vm.given = it },
-                    label = { Text("First name") },
+                    label = { Text(stringResource(R.string.first_name)) },
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words, imeAction = ImeAction.Next),
                     modifier = Modifier.fillMaxWidth(),
@@ -218,7 +221,7 @@ fun EditScreen(
                 OutlinedTextField(
                     value = vm.family,
                     onValueChange = { vm.family = it },
-                    label = { Text("Last name") },
+                    label = { Text(stringResource(R.string.last_name)) },
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words, imeAction = ImeAction.Next),
                     modifier = Modifier.fillMaxWidth(),
@@ -229,30 +232,30 @@ fun EditScreen(
                 vm.phones.forEachIndexed { i, p ->
                     FieldEditor(
                         field = p,
-                        label = "Phone",
-                        typeLabel = p.phoneLabel(),
-                        types = PhoneTypes,
+                        label = stringResource(R.string.phone),
+                        typeLabel = p.phoneLabel(context),
+                        types = PhoneTypes.map { it.first to stringResource(it.second) },
                         keyboardType = KeyboardType.Phone,
                         onChange = { vm.phones[i] = it },
                         onRemove = { vm.phones.removeAt(i) },
                     )
                 }
-                AddButton("Add phone") { vm.phones += ContactField("", Phone.TYPE_MOBILE) }
+                AddButton(stringResource(R.string.add_phone)) { vm.phones += ContactField("", Phone.TYPE_MOBILE) }
             }
 
             FormSection(Icons.Rounded.Email) {
                 vm.emails.forEachIndexed { i, e ->
                     FieldEditor(
                         field = e,
-                        label = "Email",
-                        typeLabel = e.emailLabel(),
-                        types = EmailTypes,
+                        label = stringResource(R.string.email),
+                        typeLabel = e.emailLabel(context),
+                        types = EmailTypes.map { it.first to stringResource(it.second) },
                         keyboardType = KeyboardType.Email,
                         onChange = { vm.emails[i] = it },
                         onRemove = { vm.emails.removeAt(i) },
                     )
                 }
-                AddButton("Add email") { vm.emails += ContactField("", Email.TYPE_HOME) }
+                AddButton(stringResource(R.string.add_email)) { vm.emails += ContactField("", Email.TYPE_HOME) }
             }
         }
     }
@@ -260,10 +263,10 @@ fun EditScreen(
     if (confirmDiscard) {
         AlertDialog(
             onDismissRequest = { confirmDiscard = false },
-            title = { Text("Discard changes?") },
-            text = { Text("Your changes won't be saved.") },
-            confirmButton = { TextButton(onClick = { confirmDiscard = false; onClose() }) { Text("Discard") } },
-            dismissButton = { TextButton(onClick = { confirmDiscard = false }) { Text("Keep editing") } },
+            title = { Text(stringResource(R.string.discard_title)) },
+            text = { Text(stringResource(R.string.discard_body)) },
+            confirmButton = { TextButton(onClick = { confirmDiscard = false; onClose() }) { Text(stringResource(R.string.discard)) } },
+            dismissButton = { TextButton(onClick = { confirmDiscard = false }) { Text(stringResource(R.string.keep_editing)) } },
         )
     }
 }
@@ -302,7 +305,7 @@ private fun FieldEditor(
                 modifier = Modifier.weight(1f),
             )
             IconButton(onClick = onRemove) {
-                Icon(Icons.Rounded.RemoveCircleOutline, "Remove", tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                Icon(Icons.Rounded.RemoveCircleOutline, stringResource(R.string.remove), tint = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
         Box {

@@ -5,6 +5,9 @@ plugins {
 }
 
 android {
+    androidResources {
+        generateLocaleConfig = true
+    }
     namespace = "dev.hostyn.phone"
     compileSdk = 34
 
@@ -14,6 +17,7 @@ android {
         targetSdk = 34
         versionCode = 1
         versionName = "1.0"
+        resourceConfigurations += listOf("en", "es")
     }
 
     buildTypes {

@@ -1,5 +1,6 @@
 package dev.hostyn.phone.data
 
+import android.content.Context
 import android.content.ContentResolver
 import android.database.ContentObserver
 import android.os.Handler
@@ -31,7 +32,9 @@ data class RecentCall(
     val missed get() = type == Calls.MISSED_TYPE
 }
 
-class CallLogRepository(private val resolver: ContentResolver) {
+class CallLogRepository(private val context: Context) {
+    private val resolver: ContentResolver get() = context.contentResolver
+
 
     fun observe(): Flow<List<RecentCall>> = callbackFlow {
         val observer = object : ContentObserver(Handler(Looper.getMainLooper())) {
@@ -89,7 +92,7 @@ class CallLogRepository(private val resolver: ContentResolver) {
                     contactId = i?.contactId,
                     name = i?.name,
                     photoUri = i?.photoUri,
-                    numberLabel = i?.let { ContactField(r.number, it.type, it.label).phoneLabel() },
+                    numberLabel = i?.let { ContactField(r.number, it.type, it.label).phoneLabel(context) },
                 )
             }
         }

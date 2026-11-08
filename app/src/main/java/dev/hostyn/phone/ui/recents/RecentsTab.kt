@@ -1,5 +1,9 @@
 package dev.hostyn.phone.ui.recents
 
+import android.text.format.DateUtils
+import android.content.Context
+import dev.hostyn.phone.R
+import androidx.compose.ui.res.stringResource
 import android.Manifest
 import android.content.pm.PackageManager
 import android.provider.CallLog.Calls
@@ -58,10 +62,7 @@ import dev.hostyn.phone.ui.components.segmentShape
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
-import java.time.format.DateTimeFormatter
-import java.util.Locale
 
-private val DayFmt = DateTimeFormatter.ofPattern("EEEE, MMMM d", Locale.ENGLISH)
 
 private sealed interface RecentRow {
     val key: Any
@@ -69,18 +70,22 @@ private sealed interface RecentRow {
     data class Entry(val call: RecentCall, val first: Boolean, val last: Boolean) : RecentRow { override val key = call.id }
 }
 
-private fun dayTitle(date: LocalDate, today: LocalDate): String = when (date) {
-    today -> "Today"
-    today.minusDays(1) -> "Yesterday"
-    else -> DayFmt.format(date)
+private fun dayTitle(context: Context, date: LocalDate, today: LocalDate): String = when (date) {
+    today -> context.getString(R.string.today)
+    today.minusDays(1) -> context.getString(R.string.yesterday)
+    else -> DateUtils.formatDateTime(
+        context,
+        date.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli(),
+        DateUtils.FORMAT_SHOW_DATE or DateUtils.FORMAT_SHOW_WEEKDAY or DateUtils.FORMAT_NO_YEAR,
+    ).replaceFirstChar { it.titlecase() }
 }
 
-private fun buildRows(calls: List<RecentCall>): List<RecentRow> {
+private fun buildRows(context: Context, calls: List<RecentCall>): List<RecentRow> {
     val zone = ZoneId.systemDefault()
     val today = LocalDate.now(zone)
     val rows = mutableListOf<RecentRow>()
     calls.groupBy { Instant.ofEpochMilli(it.date).atZone(zone).toLocalDate() }.forEach { (date, group) ->
-        rows += RecentRow.Day(dayTitle(date, today))
+        rows += RecentRow.Day(dayTitle(context, date, today))
         group.forEachIndexed { i, c -> rows += RecentRow.Entry(c, i == 0, i == group.lastIndex) }
     }
     return rows
@@ -105,13 +110,13 @@ fun RecentsTab(
     if (!canRead) {
         EmptyState(
             Icons.Rounded.History,
-            "Your recent calls",
-            if (!isDefault) "Set this app as your default phone app to make calls and see your call history here."
-            else "Allow access to your call log to see it here.",
+            stringResource(R.string.recents_title),
+            if (!isDefault) stringResource(R.string.recents_need_default)
+            else stringResource(R.string.recents_need_permission),
             Modifier.fillMaxSize().padding(contentPadding),
         ) {
             Button(onClick = { if (!isDefault) requestRole() else requestPermission.launch(Manifest.permission.READ_CALL_LOG) }) {
-                Text(if (!isDefault) "Set as default phone app" else "Allow access")
+                Text(if (!isDefault) stringResource(R.string.set_default_phone_app) else stringResource(R.string.allow_access))
             }
         }
         return
@@ -123,12 +128,12 @@ fun RecentsTab(
         list == null -> Box(Modifier.fillMaxSize().padding(contentPadding), Alignment.Center) { CircularProgressIndicator() }
         list.isEmpty() -> EmptyState(
             Icons.Rounded.History,
-            "No recent calls",
-            "Calls you make and receive will show up here.",
+            stringResource(R.string.no_recent_calls),
+            stringResource(R.string.no_recent_calls_body),
             Modifier.fillMaxSize().padding(contentPadding),
         )
         else -> {
-            val rows = remember(list) { buildRows(list) }
+            val rows = remember(list) { buildRows(context, list) }
             LazyColumn(
                 contentPadding = PaddingValues(
                     top = contentPadding.calculateTopPadding(),
@@ -164,7 +169,7 @@ private fun RecentCallRow(
     val call = row.call
     val shape = segmentShape(row.first, row.last)
     val hidden = call.number.isBlank()
-    val title = call.name ?: if (hidden) "Private number" else formatPhone(context, call.number)
+    val title = call.name ?: if (hidden) stringResource(R.string.private_number) else formatPhone(context, call.number)
     val colors = MaterialTheme.colorScheme
 
     val (icon, tint) = when (call.type) {
@@ -222,7 +227,7 @@ private fun RecentCallRow(
             }
             if (!hidden) {
                 IconButton(onClick = { onCall(call.number) }) {
-                    Icon(Icons.Rounded.Call, "Call", tint = colors.primary)
+                    Icon(Icons.Rounded.Call, stringResource(R.string.call), tint = colors.primary)
                 }
             }
         }
