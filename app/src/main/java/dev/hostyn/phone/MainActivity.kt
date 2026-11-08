@@ -29,11 +29,13 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import dev.hostyn.phone.call.MissedCallNotifier
 import dev.hostyn.phone.ui.PermissionGate
+import dev.hostyn.phone.ui.components.ImportDialog
 import dev.hostyn.phone.ui.blocked.BlockedNumbersScreen
 import dev.hostyn.phone.ui.detail.DetailScreen
 import dev.hostyn.phone.ui.dialer.DialerScreen
 import dev.hostyn.phone.ui.edit.EditScreen
 import dev.hostyn.phone.ui.home.HomeScreen
+import dev.hostyn.phone.ui.settings.SettingsScreen
 import dev.hostyn.phone.ui.number.NumberScreen
 import dev.hostyn.phone.ui.theme.PhoneTheme
 
@@ -42,6 +44,8 @@ class MainActivity : ComponentActivity() {
     private val dialRequest = mutableStateOf<String?>(null)
     /** Bumped when the missed calls notification asks to show Recents. */
     private val recentsRequest = mutableIntStateOf(0)
+    /** vCard file opened from another app, waiting to be imported. */
+    private val importRequest = mutableStateOf<Uri?>(null)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
@@ -52,7 +56,7 @@ class MainActivity : ComponentActivity() {
         setContent {
             PhoneTheme {
                 PermissionGate {
-                    AppNavigation(app, dialRequest, recentsRequest)
+                    AppNavigation(app, dialRequest, recentsRequest, importRequest)
                 }
             }
         }
@@ -65,16 +69,25 @@ class MainActivity : ComponentActivity() {
 
     private fun handleIntent(intent: Intent?) {
         when (intent?.action) {
-            Intent.ACTION_DIAL, Intent.ACTION_VIEW ->
-                dialRequest.value = intent.data?.schemeSpecificPart.orEmpty()
+            Intent.ACTION_DIAL -> dialRequest.value = intent.data?.schemeSpecificPart.orEmpty()
+            Intent.ACTION_VIEW ->
+                if (intent.data?.scheme == "tel") dialRequest.value = intent.data?.schemeSpecificPart.orEmpty()
+                else importRequest.value = intent.data
             MissedCallNotifier.ACTION_SHOW_RECENTS -> recentsRequest.intValue++
         }
     }
 }
 
 @Composable
-private fun AppNavigation(app: PhoneApp, dialRequest: MutableState<String?>, recentsRequest: MutableIntState) {
+private fun AppNavigation(
+    app: PhoneApp,
+    dialRequest: MutableState<String?>,
+    recentsRequest: MutableIntState,
+    importRequest: MutableState<Uri?>,
+) {
     val nav = rememberNavController()
+
+    importRequest.value?.let { uri -> ImportDialog(uri, app.repository) { importRequest.value = null } }
 
     LaunchedEffect(recentsRequest.intValue) {
         if (recentsRequest.intValue > 0) nav.popBackStack("home", inclusive = false)
@@ -105,7 +118,7 @@ private fun AppNavigation(app: PhoneApp, dialRequest: MutableState<String?>, rec
                     nav.navigate(if (phone == null) "edit" else "edit?phone=${Uri.encode(phone)}")
                 },
                 onDialpad = { nav.navigate("dialpad") },
-                onBlockedNumbers = { nav.navigate("blocked") },
+                onSettings = { nav.navigate("settings") },
                 onOpenNumber = { nav.navigate("number/${Uri.encode(it)}") },
                 recentsRequest = recentsRequest.intValue,
             )
@@ -120,6 +133,14 @@ private fun AppNavigation(app: PhoneApp, dialRequest: MutableState<String?>, rec
                     nav.navigate("detail/$id") { popUpTo("home") }
                 },
                 onAddContact = { nav.navigate("edit?phone=${Uri.encode(it)}") },
+            )
+        }
+        composable("settings") {
+            SettingsScreen(
+                settings = app.settings,
+                repo = app.repository,
+                onBack = { nav.popBackStack() },
+                onBlockedNumbers = { nav.navigate("blocked") },
             )
         }
         composable("blocked") {

@@ -6,7 +6,7 @@ import androidx.compose.ui.res.stringResource
 import android.content.Context
 import androidx.compose.animation.Crossfade
 import androidx.compose.foundation.layout.Box
-import androidx.compose.material.icons.rounded.Block
+import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material.icons.rounded.DeleteSweep
 import androidx.compose.material.icons.rounded.MoreVert
 import androidx.compose.material3.AlertDialog
@@ -69,7 +69,7 @@ fun HomeScreen(
     onOpenContact: (Long) -> Unit,
     onCreateContact: (String?) -> Unit,
     onDialpad: () -> Unit,
-    onBlockedNumbers: () -> Unit,
+    onSettings: () -> Unit,
     onOpenNumber: (String) -> Unit,
     recentsRequest: Int,
 ) {
@@ -106,14 +106,14 @@ fun HomeScreen(
                         }
                         DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
                             DropdownMenuItem(
-                                text = { Text(stringResource(R.string.blocked_numbers)) },
-                                leadingIcon = { Icon(Icons.Rounded.Block, null) },
-                                onClick = { menu = false; onBlockedNumbers() },
-                            )
-                            DropdownMenuItem(
                                 text = { Text(stringResource(R.string.clear_history)) },
                                 leadingIcon = { Icon(Icons.Rounded.DeleteSweep, null) },
                                 onClick = { menu = false; confirmClear = true },
+                            )
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.settings)) },
+                                leadingIcon = { Icon(Icons.Rounded.Settings, null) },
+                                onClick = { menu = false; onSettings() },
                             )
                         }
                     }

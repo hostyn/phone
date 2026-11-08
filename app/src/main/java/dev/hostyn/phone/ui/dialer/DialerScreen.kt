@@ -104,7 +104,7 @@ private fun suggest(input: String, contacts: List<ContactSummary>): List<Suggest
 }
 
 private class DialTones(context: Context) {
-    private val enabled = Settings.System.getInt(context.contentResolver, Settings.System.DTMF_TONE_WHEN_DIALING, 1) == 1
+    private val enabled = (context.applicationContext as dev.hostyn.phone.PhoneApp).settings.dialpadTones
     private val generator = if (enabled) {
         try { ToneGenerator(AudioManager.STREAM_DTMF, 70) } catch (_: RuntimeException) { null }
     } else null

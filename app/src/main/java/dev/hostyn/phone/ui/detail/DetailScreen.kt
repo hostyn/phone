@@ -84,10 +84,37 @@ import dev.hostyn.phone.ui.components.emailLabel
 import dev.hostyn.phone.ui.components.phoneLabel
 import dev.hostyn.phone.ui.components.sms
 import kotlinx.coroutines.launch
+import android.content.Intent
+import android.media.RingtoneManager
+import android.net.Uri
+import android.provider.Settings
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.text.selection.SelectionContainer
+import androidx.compose.material.icons.rounded.Business
+import androidx.compose.material.icons.rounded.Chat
+import androidx.compose.material.icons.rounded.Dialpad
+import androidx.compose.material.icons.rounded.Event
+import androidx.compose.material.icons.rounded.Language
+import androidx.compose.material.icons.rounded.LocationOn
+import androidx.compose.material.icons.rounded.MusicNote
+import androidx.compose.material.icons.rounded.People
+import androidx.compose.material.icons.rounded.Share
+import androidx.compose.material.icons.rounded.Voicemail
+import androidx.compose.material3.Checkbox
+import dev.hostyn.phone.data.shareContact
+import dev.hostyn.phone.ui.components.FieldKind
+import dev.hostyn.phone.ui.components.formatEventDate
+import dev.hostyn.phone.ui.components.openUrl
+import dev.hostyn.phone.ui.components.protocolLabel
+import dev.hostyn.phone.ui.components.showOnMap
+import dev.hostyn.phone.ui.components.typeLabel
 
 private object Loading
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun DetailScreen(
     repo: ContactsRepository,
@@ -111,6 +138,29 @@ fun DetailScreen(
     var confirmBlock by remember { mutableStateOf(false) }
     val blockedList by remember { blocked.observe() }.collectAsState(initial = emptyList())
     val canBlock = rememberOnResume { context.isDefaultDialer() }
+    val ringtonePicker = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+        val c = state as? ContactDetail ?: return@rememberLauncherForActivityResult
+        if (result.resultCode != android.app.Activity.RESULT_OK) return@rememberLauncherForActivityResult
+        @Suppress("DEPRECATION")
+        val picked = result.data?.getParcelableExtra<Uri>(RingtoneManager.EXTRA_RINGTONE_PICKED_URI)
+        // The default ringtone is stored as “no custom ringtone”.
+        val value = picked?.takeUnless { RingtoneManager.isDefault(it) }?.toString()
+        scope.launch { repo.setRingtone(c.id, value) }
+    }
+    fun pickRingtone(c: ContactDetail) {
+        ringtonePicker.launch(
+            Intent(RingtoneManager.ACTION_RINGTONE_PICKER).apply {
+                putExtra(RingtoneManager.EXTRA_RINGTONE_TYPE, RingtoneManager.TYPE_RINGTONE)
+                putExtra(RingtoneManager.EXTRA_RINGTONE_SHOW_DEFAULT, true)
+                putExtra(RingtoneManager.EXTRA_RINGTONE_SHOW_SILENT, false)
+                putExtra(RingtoneManager.EXTRA_RINGTONE_DEFAULT_URI, Settings.System.DEFAULT_RINGTONE_URI)
+                putExtra(
+                    RingtoneManager.EXTRA_RINGTONE_EXISTING_URI,
+                    c.ringtone?.takeIf { it.isNotEmpty() }?.let(Uri::parse) ?: Settings.System.DEFAULT_RINGTONE_URI,
+                )
+            },
+        )
+    }
 
     // If the contact disappears (deleted here or from another app), go back.
     LaunchedEffect(state) { if (state == null) leave() }
@@ -155,6 +205,24 @@ fun DetailScreen(
                         Box {
                             IconButton(onClick = { menu = true }) { Icon(Icons.Rounded.MoreVert, stringResource(R.string.more_options)) }
                             DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
+                                if (contact.lookupKey != null) {
+                                    DropdownMenuItem(
+                                        text = { Text(stringResource(R.string.share)) },
+                                        leadingIcon = { Icon(Icons.Rounded.Share, null) },
+                                        onClick = { menu = false; scope.launch { shareContact(context, repo, contact) } },
+                                    )
+                                }
+                                DropdownMenuItem(
+                                    text = { Text(stringResource(R.string.ringtone)) },
+                                    leadingIcon = { Icon(Icons.Rounded.MusicNote, null) },
+                                    onClick = { menu = false; pickRingtone(contact) },
+                                )
+                                DropdownMenuItem(
+                                    text = { Text(stringResource(R.string.send_to_voicemail)) },
+                                    leadingIcon = { Icon(Icons.Rounded.Voicemail, null) },
+                                    trailingIcon = { Checkbox(checked = contact.sendToVoicemail, onCheckedChange = null) },
+                                    onClick = { scope.launch { repo.setSendToVoicemail(contact.id, !contact.sendToVoicemail) } },
+                                )
                                 if (canBlock && phones.isNotEmpty()) {
                                     DropdownMenuItem(
                                         text = { Text(stringResource(if (isBlocked) R.string.unblock_numbers else R.string.block_numbers)) },
@@ -199,6 +267,42 @@ fun DetailScreen(
                 textAlign = TextAlign.Center,
                 modifier = Modifier.padding(horizontal = 24.dp),
             )
+            val data = contact.data
+            val org = data.organization.let { o ->
+                listOf(listOf(o.title, o.department).filter { it.isNotBlank() }.joinToString(", "), o.company)
+                    .filter { it.isNotBlank() }.joinToString(" · ")
+            }
+            listOf(data.nickname.value.takeIf { it.isNotBlank() }?.let { "“${it.trim()}”" }, org.ifBlank { null })
+                .filterNotNull()
+                .forEach { line ->
+                    Spacer(Modifier.height(4.dp))
+                    Text(
+                        line,
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.padding(horizontal = 24.dp),
+                    )
+                }
+            if (contact.groupTitles.isNotEmpty()) {
+                Spacer(Modifier.height(12.dp))
+                FlowRow(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier.padding(horizontal = 24.dp),
+                ) {
+                    contact.groupTitles.forEach { title ->
+                        Surface(shape = RoundedCornerShape(8.dp), color = MaterialTheme.colorScheme.secondaryContainer) {
+                            Text(
+                                title,
+                                style = MaterialTheme.typography.labelLarge,
+                                color = MaterialTheme.colorScheme.onSecondaryContainer,
+                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                            )
+                        }
+                    }
+                }
+            }
             if (isBlocked) {
                 Spacer(Modifier.height(8.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -218,7 +322,9 @@ fun DetailScreen(
             }
             Spacer(Modifier.height(28.dp))
 
-            if (contact.phones.isEmpty() && contact.emails.isEmpty()) {
+            val hasInfo = listOf(data.phones, data.emails, data.sips, data.ims, data.addresses, data.websites, data.events, data.relations)
+                .any { it.isNotEmpty() }
+            if (!hasInfo) {
                 Text(
                     stringResource(R.string.contact_no_info),
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -260,6 +366,79 @@ fun DetailScreen(
                                 onLongClick = { copy(e.value) },
                             )
                         }
+                        data.sips.forEach { sip ->
+                            InfoRow(
+                                icon = Icons.Rounded.Dialpad,
+                                value = sip.value,
+                                label = "${stringResource(R.string.sip_address)} · ${FieldKind.Sips.label(context, sip.type, sip.label)}",
+                                onClick = { placeCall("sip:" + sip.value.removePrefix("sip:")) },
+                                onLongClick = { copy(sip.value) },
+                            )
+                        }
+                        data.ims.forEach { im ->
+                            InfoRow(
+                                icon = Icons.Rounded.Chat,
+                                value = im.handle,
+                                label = im.protocolLabel(context),
+                                onClick = { copy(im.handle) },
+                                onLongClick = { copy(im.handle) },
+                            )
+                        }
+                        data.addresses.forEach { a ->
+                            InfoRow(
+                                icon = Icons.Rounded.LocationOn,
+                                value = a.display(),
+                                label = a.typeLabel(context),
+                                onClick = { context.showOnMap(a.display()) },
+                                onLongClick = { copy(a.display()) },
+                            )
+                        }
+                        data.websites.forEach { w ->
+                            InfoRow(
+                                icon = Icons.Rounded.Language,
+                                value = w.value,
+                                label = FieldKind.Websites.label(context, w.type, w.label),
+                                onClick = { context.openUrl(w.value) },
+                                onLongClick = { copy(w.value) },
+                            )
+                        }
+                        data.events.forEach { e ->
+                            val date = formatEventDate(e.value)
+                            InfoRow(
+                                icon = Icons.Rounded.Event,
+                                value = date,
+                                label = FieldKind.Events.label(context, e.type, e.label),
+                                onClick = { copy(date) },
+                                onLongClick = { copy(date) },
+                            )
+                        }
+                        data.relations.forEach { r ->
+                            InfoRow(
+                                icon = Icons.Rounded.People,
+                                value = r.value,
+                                label = FieldKind.Relations.label(context, r.type, r.label),
+                                onClick = { copy(r.value) },
+                                onLongClick = { copy(r.value) },
+                            )
+                        }
+                    }
+                }
+            }
+            if (!data.note.isBlank) {
+                Spacer(Modifier.height(12.dp))
+                Surface(
+                    shape = RoundedCornerShape(28.dp),
+                    color = MaterialTheme.colorScheme.surfaceContainer,
+                    modifier = Modifier.padding(horizontal = 16.dp).fillMaxWidth(),
+                ) {
+                    Column(Modifier.padding(horizontal = 20.dp, vertical = 16.dp)) {
+                        Text(
+                            stringResource(R.string.notes),
+                            style = MaterialTheme.typography.titleSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        Spacer(Modifier.height(8.dp))
+                        SelectionContainer { Text(data.note.value.trim(), style = MaterialTheme.typography.bodyLarge) }
                     }
                 }
             }

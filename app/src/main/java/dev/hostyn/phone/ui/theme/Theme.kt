@@ -15,6 +15,13 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.activity.ComponentActivity
+import androidx.activity.SystemBarStyle
+import androidx.activity.enableEdgeToEdge
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.ui.graphics.toArgb
+import dev.hostyn.phone.PhoneApp
+import dev.hostyn.phone.data.ThemeMode
 
 // Fallback palette (Android < 12) generated from a blue seed color.
 private val LightColors = lightColorScheme(
@@ -89,12 +96,32 @@ fun appColorScheme(context: Context, dark: Boolean, dynamic: Boolean = true): Co
     else -> LightColors
 }
 
+/** Whether the app should be dark, from the theme setting. */
 @Composable
-fun PhoneTheme(
-    darkTheme: Boolean = isSystemInDarkTheme(),
-    dynamicColor: Boolean = true,
-    content: @Composable () -> Unit,
-) {
-    val colors = appColorScheme(LocalContext.current, darkTheme, dynamicColor)
+fun appInDarkTheme(): Boolean {
+    val settings = (LocalContext.current.applicationContext as PhoneApp).settings
+    return when (settings.theme) {
+        ThemeMode.System -> isSystemInDarkTheme()
+        ThemeMode.Light -> false
+        ThemeMode.Dark -> true
+    }
+}
+
+@Composable
+fun PhoneTheme(content: @Composable () -> Unit) {
+    val context = LocalContext.current
+    val settings = (context.applicationContext as PhoneApp).settings
+    val dark = appInDarkTheme()
+    val colors = appColorScheme(context, dark, settings.dynamicColor)
+
+    // Status and navigation bar icons follow the app theme, not the system one.
+    val activity = context as? ComponentActivity
+    DisposableEffect(activity, dark) {
+        activity?.enableEdgeToEdge(
+            statusBarStyle = SystemBarStyle.auto(Color.Transparent.toArgb(), Color.Transparent.toArgb()) { dark },
+            navigationBarStyle = SystemBarStyle.auto(Color.Transparent.toArgb(), Color.Transparent.toArgb()) { dark },
+        )
+        onDispose {}
+    }
     MaterialTheme(colorScheme = colors, shapes = AppShapes, content = content)
 }

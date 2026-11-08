@@ -24,7 +24,7 @@ android {
         release {
             isMinifyEnabled = true
             isShrinkResources = true
-            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"))
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
             signingConfig = signingConfigs.getByName("debug")
         }
     }
@@ -52,5 +52,13 @@ dependencies {
     implementation(libs.androidx.material.icons.extended)
     implementation(libs.androidx.navigation.compose)
     implementation(libs.coil.compose)
+    implementation(libs.androidx.work.runtime)
+    implementation(libs.androidx.documentfile)
+    // vCard parsing for importing contacts. Only the plain-text vCard reader/writer is used.
+    implementation(libs.ezvcard) {
+        exclude(group = "com.fasterxml.jackson.core")
+        exclude(group = "org.freemarker")
+        exclude(group = "org.jsoup")
+    }
     debugImplementation(libs.androidx.ui.tooling)
 }

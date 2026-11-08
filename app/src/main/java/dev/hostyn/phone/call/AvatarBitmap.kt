@@ -19,7 +19,7 @@ fun avatarBitmap(context: Context, call: CallUi, size: Int = 192): Bitmap =
 
 fun avatarBitmap(context: Context, name: String, contactId: Long?, number: String, size: Int = 192): Bitmap {
     val dark = context.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK == Configuration.UI_MODE_NIGHT_YES
-    val (bg, fg) = avatarColors(appColorScheme(context, dark), contactId ?: number.hashCode().toLong())
+    val (bg, fg) = avatarColors(appColorScheme(context, dark, (context.applicationContext as dev.hostyn.phone.PhoneApp).settings.dynamicColor), contactId ?: number.hashCode().toLong())
     val bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
     val canvas = Canvas(bitmap)
     canvas.drawCircle(size / 2f, size / 2f, size / 2f, Paint(Paint.ANTI_ALIAS_FLAG).apply { color = bg.toArgb() })

@@ -49,7 +49,11 @@ fun Context.isDefaultDialer(): Boolean =
 /** Places the call through the system (Telecom). */
 fun Context.placeCall(number: String) {
     try {
-        getSystemService(TelecomManager::class.java).placeCall(Uri.fromParts("tel", number, null), Bundle())
+        getSystemService(TelecomManager::class.java).placeCall(
+            if (number.startsWith("sip:")) Uri.fromParts("sip", number.removePrefix("sip:"), null)
+            else Uri.fromParts("tel", number, null),
+            Bundle(),
+        )
     } catch (_: SecurityException) {
         Toast.makeText(this, getString(R.string.error_call_permission), Toast.LENGTH_SHORT).show()
     }

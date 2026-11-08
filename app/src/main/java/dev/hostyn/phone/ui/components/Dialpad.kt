@@ -31,6 +31,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
@@ -88,6 +89,7 @@ private fun DialKey(
 ) {
     val interaction = remember { MutableInteractionSource() }
     val view = LocalView.current
+    val vibrate = (LocalContext.current.applicationContext as dev.hostyn.phone.PhoneApp).settings.dialpadVibration
     val down by rememberUpdatedState(onDown)
     val up by rememberUpdatedState(onUp)
     val long by rememberUpdatedState(onLongPress)
@@ -103,7 +105,7 @@ private fun DialKey(
                     onPress = { offset ->
                         val press = PressInteraction.Press(offset)
                         interaction.emit(press)
-                        view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+                        if (vibrate) view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
                         down(digit)
                         val released = tryAwaitRelease()
                         up(digit)
