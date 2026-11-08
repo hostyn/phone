@@ -8,6 +8,8 @@
     <!-- Dialer -->
     <uses-permission android:name="android.permission.CALL_PHONE" />
     <uses-permission android:name="android.permission.READ_CALL_LOG" />
+    <uses-permission android:name="android.permission.WRITE_CALL_LOG" />
+    <uses-permission android:name="android.permission.READ_PHONE_STATE" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
@@ -78,5 +80,14 @@
         <receiver
             android:name=".call.CallActionReceiver"
             android:exported="false" />
+
+        <!-- Telecom hands the missed calls notification to the default phone app -->
+        <receiver
+            android:name=".call.MissedCallReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.telecom.action.SHOW_MISSED_CALLS_NOTIFICATION" />
+            </intent-filter>
+        </receiver>
     </application>
 </manifest>

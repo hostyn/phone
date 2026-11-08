@@ -24,6 +24,8 @@ data class RecentCall(
     val type: Int,
     val date: Long,
     val count: Int,
+    /** Call log ids of every call grouped in this row. */
+    val ids: List<Long>,
     val contactId: Long?,
     val name: String?,
     val photoUri: String?,
@@ -80,7 +82,7 @@ class CallLogRepository(private val context: Context) {
         for (r in raw) {
             val last = out.lastOrNull()
             if (last != null && samePhone(last.number, r.number) && day(last.date) == day(r.date)) {
-                out[out.lastIndex] = last.copy(count = last.count + 1)
+                out[out.lastIndex] = last.copy(count = last.count + 1, ids = last.ids + r.id)
             } else {
                 val i = info(r.number)
                 out += RecentCall(
@@ -89,6 +91,7 @@ class CallLogRepository(private val context: Context) {
                     type = r.type,
                     date = r.date,
                     count = 1,
+                    ids = listOf(r.id),
                     contactId = i?.contactId,
                     name = i?.name,
                     photoUri = i?.photoUri,
@@ -97,5 +100,65 @@ class CallLogRepository(private val context: Context) {
             }
         }
         return out
+    }
+
+    /** Deletes calls from the history. */
+    fun delete(ids: List<Long>): Boolean = try {
+        if (ids.isNotEmpty()) {
+            resolver.delete(Calls.CONTENT_URI, "${Calls._ID} IN (${ids.joinToString(",")})", null)
+        }
+        true
+    } catch (_: Exception) {
+        false
+    }
+
+    fun clearAll(): Boolean = try {
+        resolver.delete(Calls.CONTENT_URI, null, null)
+        true
+    } catch (_: Exception) {
+        false
+    }
+}
+
+/** A missed call nobody has looked at yet. */
+data class MissedCall(val number: String, val date: Long, val info: CallerInfo?)
+
+/** Missed calls the user hasn't seen yet, newest first. */
+fun ContentResolver.newMissedCalls(): List<MissedCall> {
+    val out = mutableListOf<MissedCall>()
+    try {
+        query(
+            Calls.CONTENT_URI,
+            arrayOf(Calls.NUMBER, Calls.DATE, Calls.NUMBER_PRESENTATION),
+            "${Calls.TYPE} = ? AND ${Calls.NEW} = 1",
+            arrayOf(Calls.MISSED_TYPE.toString()),
+            "${Calls.DATE} DESC",
+        )?.use { c ->
+            val cache = HashMap<String, CallerInfo?>()
+            while (c.moveToNext() && out.size < 50) {
+                val hidden = c.getInt(2) != Calls.PRESENTATION_ALLOWED
+                val number = if (hidden) "" else c.getString(0).orEmpty()
+                val info = cache.getOrPut(number) { lookupNumber(number) }
+                out += MissedCall(number, c.getLong(1), info)
+            }
+        }
+    } catch (_: SecurityException) {
+    }
+    return out
+}
+
+/** Marks missed calls as seen, so they don't show up in the notification again. */
+fun ContentResolver.markMissedCallsRead() {
+    try {
+        update(
+            Calls.CONTENT_URI,
+            android.content.ContentValues().apply {
+                put(Calls.NEW, 0)
+                put(Calls.IS_READ, 1)
+            },
+            "${Calls.TYPE} = ? AND (${Calls.NEW} = 1 OR ${Calls.IS_READ} = 0)",
+            arrayOf(Calls.MISSED_TYPE.toString()),
+        )
+    } catch (_: Exception) {
     }
 }

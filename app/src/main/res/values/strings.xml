@@ -98,4 +98,61 @@
     <string name="email_type_personal">Personal</string>
     <string name="email_type_work">Work</string>
     <string name="email_type_other">Other</string>
+    <!-- Missed calls -->
+    <string name="channel_missed">Missed calls</string>
+    <string name="missed_call">Missed call</string>
+    <plurals name="missed_calls_count">
+        <item quantity="one">%d missed call</item>
+        <item quantity="other">%d missed calls</item>
+    </plurals>
+    <string name="call_back">Call back</string>
+
+    <!-- Blocking -->
+    <string name="block_number">Block number</string>
+    <string name="unblock_number">Unblock number</string>
+    <string name="block_numbers">Block numbers</string>
+    <string name="unblock_numbers">Unblock numbers</string>
+    <string name="block_title">Block %1$s?</string>
+    <string name="block_body">You won\'t get calls or messages from this number.</string>
+    <string name="block_contact_body">You won\'t get calls or messages from this contact\'s numbers.</string>
+    <string name="block">Block</string>
+    <string name="blocked">Blocked</string>
+    <string name="number_blocked">Number blocked</string>
+    <string name="number_unblocked">Number unblocked</string>
+    <string name="blocked_numbers">Blocked numbers</string>
+    <string name="no_blocked">No blocked numbers</string>
+    <string name="no_blocked_body">Calls and messages from numbers you block won\'t reach you.</string>
+    <string name="add_number">Add a number</string>
+    <string name="phone_number">Phone number</string>
+    <string name="blocking_need_default">Set Phone as your default phone app to block numbers.</string>
+    <string name="error_block">Couldn\'t update blocked numbers</string>
+
+    <!-- Recents actions -->
+    <string name="copy_number">Copy number</string>
+    <string name="delete_from_history">Delete from history</string>
+    <string name="clear_history">Clear call history</string>
+    <string name="clear_history_body">All calls will be deleted from your history.</string>
+    <string name="clear">Clear</string>
+
+    <!-- Call waiting and conference -->
+    <string name="conference">Conference call</string>
+    <string name="add_call">Add call</string>
+    <string name="merge">Merge</string>
+    <string name="in_call_with">On a call with %1$s</string>
+    <string name="hold_and_answer">Hold &amp; answer</string>
+    <string name="end_and_answer">End &amp; answer</string>
+
+    <!-- Reply with a message -->
+    <string name="reply_title">Reply with a message</string>
+    <string name="quick_reply_1">Can\'t talk now. What\'s up?</string>
+    <string name="quick_reply_2">I\'ll call you right back.</string>
+    <string name="quick_reply_3">I\'ll call you later.</string>
+    <string name="quick_reply_4">Can\'t talk now. Call me later?</string>
+    <string name="quick_reply_custom">Write your own…</string>
+    <string name="send">Send</string>
+
+    <!-- Voicemail -->
+    <string name="voicemail">Voicemail</string>
+    <string name="no_voicemail">There\'s no voicemail number set up for this SIM.</string>
+    <string name="set_up">Set up</string>
 </resources>

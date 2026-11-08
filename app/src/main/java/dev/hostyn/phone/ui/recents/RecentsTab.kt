@@ -1,6 +1,34 @@
 package dev.hostyn.phone.ui.recents
 
 import android.text.format.DateUtils
+import android.view.HapticFeedbackConstants
+import androidx.compose.foundation.ExperimentalFoundationApi
+import android.widget.Toast
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.material.icons.automirrored.rounded.Message
+import androidx.compose.material.icons.rounded.ContentCopy
+import androidx.compose.material.icons.rounded.Delete
+import androidx.compose.material.icons.rounded.PersonAdd
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.unit.DpOffset
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import dev.hostyn.phone.call.MissedCallNotifier
+import dev.hostyn.phone.data.BlockedNumbersRepository
+import dev.hostyn.phone.data.isBlocked
+import dev.hostyn.phone.ui.components.BlockDialog
+import dev.hostyn.phone.ui.components.sms
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import android.content.Context
 import dev.hostyn.phone.R
 import androidx.compose.ui.res.stringResource
@@ -94,6 +122,7 @@ private fun buildRows(context: Context, calls: List<RecentCall>): List<RecentRow
 @Composable
 fun RecentsTab(
     callLog: CallLogRepository,
+    blocked: BlockedNumbersRepository,
     contentPadding: PaddingValues,
     onCall: (String) -> Unit,
     onOpenContact: (Long) -> Unit,
@@ -122,7 +151,49 @@ fun RecentsTab(
         return
     }
 
+    // Looking at Recents counts as having seen the missed calls.
+    val lifecycle = LocalLifecycleOwner.current.lifecycle
+    DisposableEffect(lifecycle) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) MissedCallNotifier.clear(context)
+        }
+        lifecycle.addObserver(observer)
+        onDispose { lifecycle.removeObserver(observer) }
+    }
+
     val calls by remember { callLog.observe() }.collectAsState(initial = null)
+    val blockedList by remember { blocked.observe() }.collectAsState(initial = emptyList())
+    val scope = rememberCoroutineScope()
+    var toBlock by remember { mutableStateOf<RecentCall?>(null) }
+    val blockedMsg = stringResource(R.string.number_blocked)
+    val unblockedMsg = stringResource(R.string.number_unblocked)
+    val errorMsg = stringResource(R.string.error_block)
+    val actions = remember(blocked, callLog) {
+        RecentActions(
+            onBlock = { toBlock = it },
+            onUnblock = { c ->
+                scope.launch {
+                    val ok = blocked.unblock(listOf(c.number))
+                    Toast.makeText(context, if (ok) unblockedMsg else errorMsg, Toast.LENGTH_SHORT).show()
+                }
+            },
+            onDelete = { c -> scope.launch(Dispatchers.IO) { callLog.delete(c.ids) } },
+        )
+    }
+    toBlock?.let { c ->
+        BlockDialog(
+            title = c.name ?: formatPhone(context, c.number),
+            body = stringResource(R.string.block_body),
+            onDismiss = { toBlock = null },
+            onConfirm = {
+                toBlock = null
+                scope.launch {
+                    val ok = blocked.block(listOf(c.number))
+                    Toast.makeText(context, if (ok) blockedMsg else errorMsg, Toast.LENGTH_SHORT).show()
+                }
+            },
+        )
+    }
     val list = calls
     when {
         list == null -> Box(Modifier.fillMaxSize().padding(contentPadding), Alignment.Center) { CircularProgressIndicator() }
@@ -149,7 +220,9 @@ fun RecentsTab(
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.animateItem().padding(start = 24.dp, top = 16.dp, bottom = 8.dp),
                         )
-                        is RecentRow.Entry -> RecentCallRow(row, onCall, onOpenContact, onAddContact, Modifier.animateItem())
+                        is RecentRow.Entry -> RecentCallRow(
+                            row, blockedList.isBlocked(row.call.number), onCall, onOpenContact, onAddContact, actions, Modifier.animateItem(),
+                        )
                     }
                 }
             }
@@ -157,14 +230,20 @@ fun RecentsTab(
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun RecentCallRow(
     row: RecentRow.Entry,
+    isBlocked: Boolean,
     onCall: (String) -> Unit,
     onOpenContact: (Long) -> Unit,
     onAddContact: (String) -> Unit,
+    actions: RecentActions,
     modifier: Modifier = Modifier,
 ) {
+    var menu by remember { mutableStateOf(false) }
+    val clipboard = LocalClipboardManager.current
+    val view = LocalView.current
     val context = LocalContext.current
     val call = row.call
     val shape = segmentShape(row.first, row.last)
@@ -183,17 +262,27 @@ private fun RecentCallRow(
     val time = DateFormat.getTimeFormat(context).format(java.util.Date(call.date))
     val subtitle = listOfNotNull(call.numberLabel, time).joinToString(" · ")
 
+    Box(
+        modifier
+            .padding(horizontal = 16.dp)
+            .padding(bottom = if (row.last) 0.dp else 2.dp),
+    ) {
     Surface(
         shape = shape,
         color = colors.surfaceContainer,
-        modifier = modifier
-            .padding(horizontal = 16.dp)
-            .padding(bottom = if (row.last) 0.dp else 2.dp)
+        modifier = Modifier
             .fillMaxWidth()
             .clip(shape)
-            .clickable(enabled = !hidden) {
-                if (call.contactId != null) onOpenContact(call.contactId) else onAddContact(call.number)
-            },
+            .combinedClickable(
+                onClick = {
+                    if (hidden) menu = true
+                    else if (call.contactId != null) onOpenContact(call.contactId) else onAddContact(call.number)
+                },
+                onLongClick = {
+                    view.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
+                    menu = true
+                },
+            ),
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
@@ -223,6 +312,10 @@ private fun RecentCallRow(
                     Icon(icon, null, tint = tint, modifier = Modifier.size(16.dp))
                     Spacer(Modifier.width(6.dp))
                     Text(subtitle, style = MaterialTheme.typography.bodyMedium, color = colors.onSurfaceVariant, maxLines = 1)
+                    if (isBlocked) {
+                        Spacer(Modifier.width(8.dp))
+                        Icon(Icons.Rounded.Block, stringResource(R.string.blocked), tint = colors.error, modifier = Modifier.size(14.dp))
+                    }
                 }
             }
             if (!hidden) {
@@ -232,4 +325,42 @@ private fun RecentCallRow(
             }
         }
     }
+    DropdownMenu(expanded = menu, onDismissRequest = { menu = false }, offset = DpOffset(56.dp, 0.dp)) {
+        if (!hidden) {
+            DropdownMenuItem(
+                text = { Text(stringResource(R.string.copy_number)) },
+                leadingIcon = { Icon(Icons.Rounded.ContentCopy, null) },
+                onClick = { menu = false; clipboard.setText(AnnotatedString(call.number)) },
+            )
+            DropdownMenuItem(
+                text = { Text(stringResource(R.string.send_message)) },
+                leadingIcon = { Icon(Icons.AutoMirrored.Rounded.Message, null) },
+                onClick = { menu = false; context.sms(call.number) },
+            )
+            if (call.contactId == null) {
+                DropdownMenuItem(
+                    text = { Text(stringResource(R.string.add_to_contacts)) },
+                    leadingIcon = { Icon(Icons.Rounded.PersonAdd, null) },
+                    onClick = { menu = false; onAddContact(call.number) },
+                )
+            }
+            DropdownMenuItem(
+                text = { Text(stringResource(if (isBlocked) R.string.unblock_number else R.string.block_number)) },
+                leadingIcon = { Icon(Icons.Rounded.Block, null) },
+                onClick = { menu = false; if (isBlocked) actions.onUnblock(call) else actions.onBlock(call) },
+            )
+        }
+        DropdownMenuItem(
+            text = { Text(stringResource(R.string.delete_from_history)) },
+            leadingIcon = { Icon(Icons.Rounded.Delete, null) },
+            onClick = { menu = false; actions.onDelete(call) },
+        )
+    }
+    }
 }
+
+private class RecentActions(
+    val onBlock: (RecentCall) -> Unit,
+    val onUnblock: (RecentCall) -> Unit,
+    val onDelete: (RecentCall) -> Unit,
+)

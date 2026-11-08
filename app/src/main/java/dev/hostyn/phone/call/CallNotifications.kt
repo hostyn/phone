@@ -30,7 +30,10 @@ object CallNotifications {
             enableVibration(false)
             lockscreenVisibility = Notification.VISIBILITY_PUBLIC
         }
-        nm.createNotificationChannels(listOf(incoming, ongoing))
+        val missed = NotificationChannel(MissedCallNotifier.CHANNEL, context.getString(R.string.channel_missed), NotificationManager.IMPORTANCE_DEFAULT).apply {
+            setShowBadge(true)
+        }
+        nm.createNotificationChannels(listOf(incoming, ongoing, missed))
     }
 
     fun build(context: Context, call: CallUi, photo: Bitmap?): Notification {

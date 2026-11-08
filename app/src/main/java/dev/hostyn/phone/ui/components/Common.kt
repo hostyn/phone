@@ -79,6 +79,7 @@ fun SearchPill(
     onQuery: (String) -> Unit,
     modifier: Modifier = Modifier,
     placeholder: String = stringResource(R.string.search_contacts),
+    trailing: (@Composable () -> Unit)? = null,
 ) {
     val focus = LocalFocusManager.current
     Surface(
@@ -107,6 +108,7 @@ fun SearchPill(
                     Icon(Icons.Rounded.Close, stringResource(R.string.clear_search))
                 }
             }
+            if (query.isEmpty() && trailing != null) trailing()
         }
     }
 }

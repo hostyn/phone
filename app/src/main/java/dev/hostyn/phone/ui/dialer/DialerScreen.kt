@@ -1,5 +1,11 @@
 package dev.hostyn.phone.ui.dialer
 
+import dev.hostyn.phone.ui.components.callVoicemail
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material.icons.rounded.Voicemail
+import android.widget.Toast
+import android.telephony.TelephonyManager
+import android.content.Intent
 import dev.hostyn.phone.R
 import androidx.compose.ui.res.stringResource
 import android.Manifest
@@ -136,6 +142,27 @@ fun DialerScreen(
     val suggestions = remember(number, contacts) { suggest(number, contacts) }
     val known = remember(number, contacts) { contacts.any { c -> c.numbers.any { samePhone(it, number) } } }
 
+    var noVoicemail by remember { mutableStateOf(false) }
+    if (noVoicemail) {
+        AlertDialog(
+            onDismissRequest = { noVoicemail = false },
+            icon = { Icon(Icons.Rounded.Voicemail, null) },
+            title = { Text(stringResource(R.string.voicemail)) },
+            text = { Text(stringResource(R.string.no_voicemail)) },
+            confirmButton = {
+                TextButton(onClick = {
+                    noVoicemail = false
+                    try {
+                        context.startActivity(Intent(TelephonyManager.ACTION_CONFIGURE_VOICEMAIL))
+                    } catch (_: Exception) {
+                        Toast.makeText(context, context.getString(R.string.error_no_app), Toast.LENGTH_SHORT).show()
+                    }
+                }) { Text(stringResource(R.string.set_up)) }
+            },
+            dismissButton = { TextButton(onClick = { noVoicemail = false }) { Text(stringResource(R.string.cancel)) } },
+        )
+    }
+
     val tones = remember { DialTones(context) }
     DisposableEffect(Unit) { onDispose { tones.release() } }
 
@@ -211,7 +238,12 @@ fun DialerScreen(
                 },
                 onLongPress = { c ->
                     if (c == '0' && number.endsWith('0')) number = number.dropLast(1) + "+"
+                    if (c == '1' && number == "1") {
+                        number = ""
+                        if (!context.callVoicemail()) noVoicemail = true
+                    }
                 },
+                voicemailKey = true,
                 modifier = Modifier.padding(horizontal = 28.dp, vertical = 8.dp),
             )
 

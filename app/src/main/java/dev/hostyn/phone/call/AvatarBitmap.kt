@@ -14,14 +14,17 @@ import dev.hostyn.phone.ui.components.initialOf
 import dev.hostyn.phone.ui.theme.appColorScheme
 
 /** Avatar with the initial and app colors, for the call notification. */
-fun avatarBitmap(context: Context, call: CallUi, size: Int = 192): Bitmap {
+fun avatarBitmap(context: Context, call: CallUi, size: Int = 192): Bitmap =
+    avatarBitmap(context, call.name, call.contactId, call.number, size)
+
+fun avatarBitmap(context: Context, name: String, contactId: Long?, number: String, size: Int = 192): Bitmap {
     val dark = context.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK == Configuration.UI_MODE_NIGHT_YES
-    val (bg, fg) = avatarColors(appColorScheme(context, dark), call.contactId ?: call.number.hashCode().toLong())
+    val (bg, fg) = avatarColors(appColorScheme(context, dark), contactId ?: number.hashCode().toLong())
     val bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
     val canvas = Canvas(bitmap)
     canvas.drawCircle(size / 2f, size / 2f, size / 2f, Paint(Paint.ANTI_ALIAS_FLAG).apply { color = bg.toArgb() })
 
-    val initial = if (call.contactId != null || call.name.any { it.isLetter() }) initialOf(call.name) else "#"
+    val initial = if (contactId != null || name.any { it.isLetter() }) initialOf(name) else "#"
     if (initial.first().isLetter()) {
         val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
             color = fg.toArgb()

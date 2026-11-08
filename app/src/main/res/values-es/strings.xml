@@ -97,4 +97,61 @@
     <string name="email_type_personal">Personal</string>
     <string name="email_type_work">Trabajo</string>
     <string name="email_type_other">Otro</string>
+    <!-- Missed calls -->
+    <string name="channel_missed">Llamadas perdidas</string>
+    <string name="missed_call">Llamada perdida</string>
+    <plurals name="missed_calls_count">
+        <item quantity="one">%d llamada perdida</item>
+        <item quantity="other">%d llamadas perdidas</item>
+    </plurals>
+    <string name="call_back">Devolver llamada</string>
+
+    <!-- Blocking -->
+    <string name="block_number">Bloquear número</string>
+    <string name="unblock_number">Desbloquear número</string>
+    <string name="block_numbers">Bloquear números</string>
+    <string name="unblock_numbers">Desbloquear números</string>
+    <string name="block_title">¿Bloquear %1$s?</string>
+    <string name="block_body">No recibirás llamadas ni mensajes de este número.</string>
+    <string name="block_contact_body">No recibirás llamadas ni mensajes de los números de este contacto.</string>
+    <string name="block">Bloquear</string>
+    <string name="blocked">Bloqueado</string>
+    <string name="number_blocked">Número bloqueado</string>
+    <string name="number_unblocked">Número desbloqueado</string>
+    <string name="blocked_numbers">Números bloqueados</string>
+    <string name="no_blocked">No hay números bloqueados</string>
+    <string name="no_blocked_body">Las llamadas y mensajes de los números que bloquees no te llegarán.</string>
+    <string name="add_number">Añadir número</string>
+    <string name="phone_number">Número de teléfono</string>
+    <string name="blocking_need_default">Haz de Phone tu app de teléfono predeterminada para bloquear números.</string>
+    <string name="error_block">No se han podido actualizar los números bloqueados</string>
+
+    <!-- Recents actions -->
+    <string name="copy_number">Copiar número</string>
+    <string name="delete_from_history">Eliminar del historial</string>
+    <string name="clear_history">Borrar historial de llamadas</string>
+    <string name="clear_history_body">Se eliminarán todas las llamadas del historial.</string>
+    <string name="clear">Borrar</string>
+
+    <!-- Call waiting and conference -->
+    <string name="conference">Conferencia</string>
+    <string name="add_call">Añadir llamada</string>
+    <string name="merge">Combinar</string>
+    <string name="in_call_with">En llamada con %1$s</string>
+    <string name="hold_and_answer">Retener y contestar</string>
+    <string name="end_and_answer">Colgar y contestar</string>
+
+    <!-- Reply with a message -->
+    <string name="reply_title">Responder con un mensaje</string>
+    <string name="quick_reply_1">Ahora no puedo hablar. ¿Qué pasa?</string>
+    <string name="quick_reply_2">Te llamo enseguida.</string>
+    <string name="quick_reply_3">Te llamo más tarde.</string>
+    <string name="quick_reply_4">No puedo hablar ahora. ¿Me llamas luego?</string>
+    <string name="quick_reply_custom">Escribir otro…</string>
+    <string name="send">Enviar</string>
+
+    <!-- Voicemail -->
+    <string name="voicemail">Buzón de voz</string>
+    <string name="no_voicemail">No hay ningún número de buzón de voz configurado para esta SIM.</string>
+    <string name="set_up">Configurar</string>
 </resources>

@@ -41,6 +41,11 @@ data class CallUi(
     val outgoing: Boolean,
     val accounts: List<PhoneAccountHandle>,
     val endReason: String?,
+    val isConference: Boolean = false,
+    /** Can be merged with another call into a conference. */
+    val canMerge: Boolean = false,
+    /** Can be rejected with a text message. */
+    val canReplyWithText: Boolean = false,
 )
 
 /**
@@ -73,6 +78,9 @@ object CallManager {
     private val callback = object : Call.Callback() {
         override fun onStateChanged(call: Call, state: Int) = publish()
         override fun onDetailsChanged(call: Call, details: Call.Details) = publish()
+        override fun onParentChanged(call: Call, parent: Call?) = publish()
+        override fun onChildrenChanged(call: Call, children: MutableList<Call>) = publish()
+        override fun onConferenceableCallsChanged(call: Call, conferenceableCalls: MutableList<Call>) = publish()
     }
 
     fun attach(s: CallService) {
@@ -126,7 +134,8 @@ object CallManager {
     fun primary(calls: List<CallUi>): CallUi? = calls.minByOrNull { it.phase.ordinal }
 
     private fun publish() {
-        _calls.value = entries.map { (call, entry) -> toUi(call, entry) }
+        // Conference participants are shown inside their conference, not as separate calls.
+        _calls.value = entries.filter { (call, _) -> call.parent == null }.map { (call, entry) -> toUi(call, entry) }
     }
 
     private fun toUi(call: Call, entry: Entry): CallUi {
@@ -160,12 +169,17 @@ object CallManager {
             }.orEmpty()
         } else emptyList()
 
+        val conference = d.hasProperty(Call.Details.PROPERTY_CONFERENCE) || call.children.isNotEmpty()
+        val participants = if (conference) {
+            call.children.mapNotNull { child -> entries[child]?.let { toUi(child, it).name } }
+        } else emptyList()
+
         return CallUi(
             id = entry.id,
             phase = phase,
-            number = number,
-            name = name,
-            label = label,
+            number = if (conference) "" else number,
+            name = if (conference) ctx?.getString(R.string.conference).orEmpty() else name,
+            label = if (conference) participants.joinToString(", ").ifBlank { null } else label,
             photoUri = info?.photoUri,
             contactId = info?.contactId,
             connectTime = d.connectTimeMillis,
@@ -173,6 +187,9 @@ object CallManager {
             outgoing = if (Build.VERSION.SDK_INT >= 29) d.callDirection == Call.Details.DIRECTION_OUTGOING else entry.outgoing,
             accounts = accounts,
             endReason = d.disconnectCause?.label?.toString()?.takeIf { it.isNotBlank() },
+            isConference = conference,
+            canMerge = call.conferenceableCalls.isNotEmpty() || d.can(Call.Details.CAPABILITY_MERGE_CONFERENCE),
+            canReplyWithText = d.can(Call.Details.CAPABILITY_RESPOND_VIA_TEXT),
         )
     }
 
@@ -186,6 +203,28 @@ object CallManager {
 
     fun reject(id: Int) {
         find(id)?.reject(false, null)
+    }
+
+    /** Declines the call and sends the caller a text message. */
+    fun rejectWithMessage(id: Int, message: String) {
+        find(id)?.reject(true, message)
+    }
+
+    /** Call waiting: ends the current call(s) and answers the ringing one. */
+    fun endAndAnswer(id: Int) {
+        val ringing = find(id) ?: return
+        entries.keys
+            .filter { it !== ringing && it.parent == null && it.stateCompat() != Call.STATE_DISCONNECTED }
+            .forEach { it.disconnect() }
+        ringing.answer(VideoProfile.STATE_AUDIO_ONLY)
+    }
+
+    /** Merges the call with the other one into a conference. */
+    fun merge(id: Int) {
+        val call = find(id) ?: return
+        val other = call.conferenceableCalls.firstOrNull()
+        if (other != null) call.conference(other)
+        else if (call.details.can(Call.Details.CAPABILITY_MERGE_CONFERENCE)) call.mergeConference()
     }
 
     fun hangUp(id: Int) {

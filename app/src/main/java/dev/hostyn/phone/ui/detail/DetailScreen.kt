@@ -1,5 +1,11 @@
 package dev.hostyn.phone.ui.detail
 
+import dev.hostyn.phone.ui.components.rememberOnResume
+import dev.hostyn.phone.ui.components.isDefaultDialer
+import dev.hostyn.phone.ui.components.BlockDialog
+import dev.hostyn.phone.data.isBlocked
+import dev.hostyn.phone.data.BlockedNumbersRepository
+import androidx.compose.material.icons.rounded.Block
 import dev.hostyn.phone.R
 import androidx.compose.ui.res.stringResource
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -83,6 +89,7 @@ private object Loading
 @Composable
 fun DetailScreen(
     repo: ContactsRepository,
+    blocked: BlockedNumbersRepository,
     contactId: Long,
     onBack: () -> Unit,
     onEdit: () -> Unit,
@@ -98,11 +105,25 @@ fun DetailScreen(
     var menu by remember { mutableStateOf(false) }
     var confirmDelete by remember { mutableStateOf(false) }
     var deleting by remember { mutableStateOf(false) }
+    var confirmBlock by remember { mutableStateOf(false) }
+    val blockedList by remember { blocked.observe() }.collectAsState(initial = emptyList())
+    val canBlock = rememberOnResume { context.isDefaultDialer() }
 
     // If the contact disappears (deleted here or from another app), go back.
     LaunchedEffect(state) { if (state == null) leave() }
 
     val contact = state as? ContactDetail
+    val phones = contact?.phones?.map { it.value }.orEmpty()
+    val isBlocked = phones.isNotEmpty() && phones.all { blockedList.isBlocked(it) }
+    val blockedMsg = stringResource(R.string.number_blocked)
+    val unblockedMsg = stringResource(R.string.number_unblocked)
+    val errorMsg = stringResource(R.string.error_block)
+    fun setBlocked(block: Boolean) {
+        scope.launch {
+            val ok = if (block) blocked.block(phones) else blocked.unblock(phones)
+            snackbar.showSnackbar(if (!ok) errorMsg else if (block) blockedMsg else unblockedMsg)
+        }
+    }
 
     val copiedText = stringResource(R.string.copied)
     fun copy(text: String) {
@@ -130,6 +151,16 @@ fun DetailScreen(
                         Box {
                             IconButton(onClick = { menu = true }) { Icon(Icons.Rounded.MoreVert, stringResource(R.string.more_options)) }
                             DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
+                                if (canBlock && phones.isNotEmpty()) {
+                                    DropdownMenuItem(
+                                        text = { Text(stringResource(if (isBlocked) R.string.unblock_numbers else R.string.block_numbers)) },
+                                        leadingIcon = { Icon(Icons.Rounded.Block, null) },
+                                        onClick = {
+                                            menu = false
+                                            if (isBlocked) setBlocked(false) else confirmBlock = true
+                                        },
+                                    )
+                                }
                                 DropdownMenuItem(
                                     text = { Text(stringResource(R.string.delete)) },
                                     leadingIcon = { Icon(Icons.Rounded.Delete, null) },
@@ -164,6 +195,14 @@ fun DetailScreen(
                 textAlign = TextAlign.Center,
                 modifier = Modifier.padding(horizontal = 24.dp),
             )
+            if (isBlocked) {
+                Spacer(Modifier.height(8.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Rounded.Block, null, tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(16.dp))
+                    Spacer(Modifier.width(6.dp))
+                    Text(stringResource(R.string.blocked), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.error)
+                }
+            }
             Spacer(Modifier.height(24.dp))
 
             val firstPhone = contact.phones.firstOrNull()?.value
@@ -221,6 +260,15 @@ fun DetailScreen(
                 }
             }
         }
+    }
+
+    if (confirmBlock && contact != null) {
+        BlockDialog(
+            title = contact.displayName.ifBlank { formatPhone(context, phones.first()) },
+            body = stringResource(R.string.block_contact_body),
+            onDismiss = { confirmBlock = false },
+            onConfirm = { confirmBlock = false; setBlocked(true) },
+        )
     }
 
     if (confirmDelete && contact != null) {

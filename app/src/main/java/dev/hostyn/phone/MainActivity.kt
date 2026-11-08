@@ -17,7 +17,9 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.MutableIntState
 import androidx.compose.runtime.MutableState
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Modifier
 import androidx.navigation.NavType
@@ -25,7 +27,9 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import dev.hostyn.phone.call.MissedCallNotifier
 import dev.hostyn.phone.ui.PermissionGate
+import dev.hostyn.phone.ui.blocked.BlockedNumbersScreen
 import dev.hostyn.phone.ui.detail.DetailScreen
 import dev.hostyn.phone.ui.dialer.DialerScreen
 import dev.hostyn.phone.ui.edit.EditScreen
@@ -35,6 +39,8 @@ import dev.hostyn.phone.ui.theme.PhoneTheme
 class MainActivity : ComponentActivity() {
     /** Number requested by another app (ACTION_DIAL / tel:), waiting to be opened in the dialpad. */
     private val dialRequest = mutableStateOf<String?>(null)
+    /** Bumped when the missed calls notification asks to show Recents. */
+    private val recentsRequest = mutableIntStateOf(0)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
@@ -45,7 +51,7 @@ class MainActivity : ComponentActivity() {
         setContent {
             PhoneTheme {
                 PermissionGate {
-                    AppNavigation(app, dialRequest)
+                    AppNavigation(app, dialRequest, recentsRequest)
                 }
             }
         }
@@ -60,13 +66,18 @@ class MainActivity : ComponentActivity() {
         when (intent?.action) {
             Intent.ACTION_DIAL, Intent.ACTION_VIEW ->
                 dialRequest.value = intent.data?.schemeSpecificPart.orEmpty()
+            MissedCallNotifier.ACTION_SHOW_RECENTS -> recentsRequest.intValue++
         }
     }
 }
 
 @Composable
-private fun AppNavigation(app: PhoneApp, dialRequest: MutableState<String?>) {
+private fun AppNavigation(app: PhoneApp, dialRequest: MutableState<String?>, recentsRequest: MutableIntState) {
     val nav = rememberNavController()
+
+    LaunchedEffect(recentsRequest.intValue) {
+        if (recentsRequest.intValue > 0) nav.popBackStack("home", inclusive = false)
+    }
 
     LaunchedEffect(dialRequest.value) {
         val number = dialRequest.value ?: return@LaunchedEffect
@@ -87,11 +98,20 @@ private fun AppNavigation(app: PhoneApp, dialRequest: MutableState<String?>) {
             HomeScreen(
                 repo = app.repository,
                 callLog = app.callLog,
+                blocked = app.blocked,
                 onOpenContact = { nav.navigate("detail/$it") },
                 onCreateContact = { phone ->
                     nav.navigate(if (phone == null) "edit" else "edit?phone=${Uri.encode(phone)}")
                 },
                 onDialpad = { nav.navigate("dialpad") },
+                onBlockedNumbers = { nav.navigate("blocked") },
+                recentsRequest = recentsRequest.intValue,
+            )
+        }
+        composable("blocked") {
+            BlockedNumbersScreen(
+                blocked = app.blocked,
+                onBack = { nav.popBackStack() },
             )
         }
         composable(
@@ -114,6 +134,7 @@ private fun AppNavigation(app: PhoneApp, dialRequest: MutableState<String?>) {
             val id = entry.arguments!!.getLong("id")
             DetailScreen(
                 repo = app.repository,
+                blocked = app.blocked,
                 contactId = id,
                 onBack = { nav.popBackStack() },
                 onEdit = { nav.navigate("edit?id=$id") },

@@ -2,6 +2,26 @@ package dev.hostyn.phone.call
 
 import dev.hostyn.phone.R
 import androidx.compose.ui.res.stringResource
+import android.content.Intent
+import dev.hostyn.phone.MainActivity
+import dev.hostyn.phone.ui.components.segmentShape
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.material.icons.automirrored.rounded.Message
+import androidx.compose.material.icons.automirrored.rounded.Send
+import androidx.compose.material.icons.rounded.AddIcCall
+import androidx.compose.material.icons.rounded.CallMerge
+import androidx.compose.material.icons.rounded.Edit
+import androidx.compose.material.icons.rounded.Groups
+import androidx.compose.material.icons.rounded.PhoneForwarded
+import androidx.compose.material.icons.rounded.PhonePaused
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilledIconButton
+import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.rememberModalBottomSheetState
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import android.telecom.CallAudioState
 import android.telecom.PhoneAccountHandle
 import android.telecom.TelecomManager
@@ -105,12 +125,15 @@ fun InCallRoute(
     LaunchedEffect(nearEar) { onProximity(nearEar) }
     LaunchedEffect(call.phase) { onKeepScreenOn(call.phase == CallPhase.RINGING) }
 
-    val held = calls.firstOrNull { it.phase == CallPhase.HOLDING && it.id != call.id }
-    InCallScreen(call, held, audio)
+    val others = calls.filter { it.id != call.id && it.phase != CallPhase.ENDED }
+    InCallScreen(call, others, audio)
 }
 
 @Composable
-private fun InCallScreen(call: CallUi, held: CallUi?, audio: CallAudioState?) {
+private fun InCallScreen(call: CallUi, others: List<CallUi>, audio: CallAudioState?) {
+    val held = others.firstOrNull { it.phase == CallPhase.HOLDING }.takeIf { call.phase != CallPhase.RINGING }
+    // Call waiting: the call we are already on while another one rings.
+    val ongoing = if (call.phase == CallPhase.RINGING) others.firstOrNull { it.phase != CallPhase.RINGING } else null
     var keypad by rememberSaveable { mutableStateOf(false) }
     var dtmf by rememberSaveable { mutableStateOf("") }
     val colors = MaterialTheme.colorScheme
@@ -129,6 +152,7 @@ private fun InCallScreen(call: CallUi, held: CallUi?, audio: CallAudioState?) {
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             if (held != null) HeldBanner(held)
+            if (ongoing != null) OngoingBanner(ongoing)
 
             Spacer(Modifier.height(if (showKeypad) 16.dp else 40.dp))
             StatusText(call)
@@ -178,7 +202,7 @@ private fun InCallScreen(call: CallUi, held: CallUi?, audio: CallAudioState?) {
             ) { mode ->
                 when (mode) {
                     0 -> AccountPicker(call)
-                    1 -> IncomingActions(call)
+                    1 -> IncomingActions(call, ongoing)
                     2 -> Spacer(Modifier.height(120.dp))
                     3 -> Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Dialpad(
@@ -192,7 +216,7 @@ private fun InCallScreen(call: CallUi, held: CallUi?, audio: CallAudioState?) {
                             Text(stringResource(R.string.hide_keypad))
                         }
                     }
-                    else -> CallControls(call, audio, onKeypad = { keypad = true })
+                    else -> CallControls(call, held, audio, onKeypad = { keypad = true })
                 }
             }
 
@@ -265,12 +289,20 @@ private fun CallerAvatar(call: CallUi) {
                 )
             }
         }
-        ContactAvatar(call.name, call.photoUri, call.contactId ?: call.number.hashCode().toLong(), size = 136.dp)
+        if (call.isConference) {
+            Surface(shape = CircleShape, color = MaterialTheme.colorScheme.primaryContainer, modifier = Modifier.size(136.dp)) {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(Icons.Rounded.Groups, null, tint = MaterialTheme.colorScheme.onPrimaryContainer, modifier = Modifier.size(64.dp))
+                }
+            }
+        } else {
+            ContactAvatar(call.name, call.photoUri, call.contactId ?: call.number.hashCode().toLong(), size = 136.dp)
+        }
     }
 }
 
 @Composable
-private fun IncomingActions(call: CallUi) {
+private fun IncomingActions(call: CallUi, ongoing: CallUi?) {
     val t = rememberInfiniteTransition(label = "answer")
     val bounce by t.animateFloat(
         initialValue = 0f,
@@ -278,16 +310,134 @@ private fun IncomingActions(call: CallUi) {
         animationSpec = infiniteRepeatable(tween(700, easing = FastOutSlowInEasing), RepeatMode.Reverse),
         label = "bounce",
     )
-    Row(
-        Modifier.fillMaxWidth().padding(bottom = 16.dp),
-        horizontalArrangement = Arrangement.SpaceEvenly,
-        verticalAlignment = Alignment.Bottom,
+    var replying by remember { mutableStateOf(false) }
+    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
+        if (call.canReplyWithText) {
+            FilledTonalButton(onClick = { replying = true }, modifier = Modifier.padding(bottom = 28.dp)) {
+                Icon(Icons.AutoMirrored.Rounded.Message, null, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(8.dp))
+                Text(stringResource(R.string.message))
+            }
+        }
+        Row(
+            Modifier.fillMaxWidth().padding(bottom = 16.dp),
+            horizontalArrangement = Arrangement.SpaceEvenly,
+            verticalAlignment = Alignment.Top,
+        ) {
+            RoundButton(Icons.Rounded.CallEnd, HangUpRed, stringResource(R.string.decline)) { CallManager.reject(call.id) }
+            if (ongoing == null) {
+                RoundButton(
+                    Icons.Rounded.Call, AnswerGreen, stringResource(R.string.answer),
+                    modifier = Modifier.graphicsLayer { translationY = -bounce * 10.dp.toPx() },
+                ) { CallManager.answer(call.id) }
+            } else {
+                RoundButton(Icons.Rounded.PhoneForwarded, AnswerGreen, stringResource(R.string.end_and_answer)) {
+                    CallManager.endAndAnswer(call.id)
+                }
+                if (ongoing.canHold || ongoing.phase == CallPhase.HOLDING) {
+                    RoundButton(
+                        Icons.Rounded.PhonePaused, AnswerGreen, stringResource(R.string.hold_and_answer),
+                        modifier = Modifier.graphicsLayer { translationY = -bounce * 10.dp.toPx() },
+                    ) { CallManager.answer(call.id) }
+                }
+            }
+        }
+    }
+    if (replying) {
+        QuickReplySheet(
+            onDismiss = { replying = false },
+            onSend = { text ->
+                replying = false
+                CallManager.rejectWithMessage(call.id, text)
+            },
+        )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun QuickReplySheet(onDismiss: () -> Unit, onSend: (String) -> Unit) {
+    val presets = listOf(
+        stringResource(R.string.quick_reply_1),
+        stringResource(R.string.quick_reply_2),
+        stringResource(R.string.quick_reply_3),
+        stringResource(R.string.quick_reply_4),
+    )
+    var custom by remember { mutableStateOf<String?>(null) }
+    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
+        Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp).padding(bottom = 24.dp).imePadding()) {
+            Text(
+                stringResource(R.string.reply_title),
+                style = MaterialTheme.typography.titleLarge,
+                modifier = Modifier.padding(start = 8.dp, bottom = 16.dp),
+            )
+            val text = custom
+            if (text == null) {
+                presets.forEachIndexed { i, p ->
+                    val shape = segmentShape(i == 0, false)
+                    Surface(
+                        onClick = { onSend(p) },
+                        shape = shape,
+                        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                        modifier = Modifier.fillMaxWidth().padding(bottom = 2.dp),
+                    ) {
+                        Text(p, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.padding(horizontal = 20.dp, vertical = 18.dp))
+                    }
+                }
+                Surface(
+                    onClick = { custom = "" },
+                    shape = segmentShape(false, true),
+                    color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(horizontal = 20.dp, vertical = 18.dp)) {
+                        Icon(Icons.Rounded.Edit, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
+                        Spacer(Modifier.width(12.dp))
+                        Text(stringResource(R.string.quick_reply_custom), style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.primary)
+                    }
+                }
+            } else {
+                val focus = remember { FocusRequester() }
+                LaunchedEffect(Unit) { focus.requestFocus() }
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    OutlinedTextField(
+                        value = text,
+                        onValueChange = { custom = it },
+                        shape = RoundedCornerShape(28.dp),
+                        maxLines = 4,
+                        modifier = Modifier.weight(1f).focusRequester(focus),
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    FilledIconButton(onClick = { onSend(text.trim()) }, enabled = text.isNotBlank(), modifier = Modifier.size(56.dp)) {
+                        Icon(Icons.AutoMirrored.Rounded.Send, stringResource(R.string.send))
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun OngoingBanner(ongoing: CallUi) {
+    Surface(
+        shape = RoundedCornerShape(24.dp),
+        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+        modifier = Modifier.fillMaxWidth(),
     ) {
-        RoundButton(Icons.Rounded.CallEnd, HangUpRed, stringResource(R.string.decline)) { CallManager.reject(call.id) }
-        RoundButton(
-            Icons.Rounded.Call, AnswerGreen, stringResource(R.string.answer),
-            modifier = Modifier.graphicsLayer { translationY = -bounce * 10.dp.toPx() },
-        ) { CallManager.answer(call.id) }
+        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp)) {
+            Icon(
+                if (ongoing.phase == CallPhase.HOLDING) Icons.Rounded.Pause else Icons.Rounded.PhoneInTalk,
+                null,
+                tint = MaterialTheme.colorScheme.primary,
+            )
+            Spacer(Modifier.width(12.dp))
+            Text(
+                stringResource(R.string.in_call_with, ongoing.name),
+                style = MaterialTheme.typography.bodyLarge,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
     }
 }
 
@@ -314,13 +464,20 @@ private fun RoundButton(
         }
         if (label != null) {
             Spacer(Modifier.height(10.dp))
-            Text(label, style = MaterialTheme.typography.labelLarge)
+            Text(
+                label,
+                style = MaterialTheme.typography.labelLarge,
+                textAlign = TextAlign.Center,
+                maxLines = 2,
+                modifier = Modifier.width(104.dp),
+            )
         }
     }
 }
 
 @Composable
-private fun CallControls(call: CallUi, audio: CallAudioState?, onKeypad: () -> Unit) {
+private fun CallControls(call: CallUi, held: CallUi?, audio: CallAudioState?, onKeypad: () -> Unit) {
+    val context = LocalContext.current
     val muted = audio?.isMuted == true
     val route = audio?.route ?: CallAudioState.ROUTE_EARPIECE
     val supported = audio?.supportedRouteMask ?: (CallAudioState.ROUTE_EARPIECE or CallAudioState.ROUTE_SPEAKER)
@@ -333,6 +490,7 @@ private fun CallControls(call: CallUi, audio: CallAudioState?, onKeypad: () -> U
     val earpieceLabel = stringResource(R.string.earpiece)
     val active = call.phase == CallPhase.ACTIVE || call.phase == CallPhase.HOLDING
 
+    Column(verticalArrangement = Arrangement.spacedBy(20.dp)) {
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
         ToggleControl(Icons.Rounded.MicOff, stringResource(R.string.mute), checked = muted) { CallManager.setMuted(!muted) }
         ToggleControl(Icons.Rounded.Dialpad, stringResource(R.string.keypad), checked = false, enabled = call.phase == CallPhase.ACTIVE, onClick = onKeypad)
@@ -368,10 +526,30 @@ private fun CallControls(call: CallUi, audio: CallAudioState?, onKeypad: () -> U
                 }
             }
         }
-        val onHold = call.phase == CallPhase.HOLDING
-        ToggleControl(Icons.Rounded.Pause, if (onHold) stringResource(R.string.resume) else stringResource(R.string.hold), checked = onHold, enabled = active && call.canHold) {
-            CallManager.setHold(call.id, !onHold)
+    }
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
+        ToggleControl(Icons.Rounded.AddIcCall, stringResource(R.string.add_call), checked = false, enabled = call.phase == CallPhase.ACTIVE) {
+            context.startActivity(
+                Intent(context, MainActivity::class.java)
+                    .setAction(Intent.ACTION_DIAL)
+                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+            )
         }
+        if (held != null) {
+            // Two calls: swap between them.
+            ToggleControl(Icons.Rounded.SwapCalls, stringResource(R.string.swap), checked = false) { CallManager.setHold(held.id, false) }
+        } else {
+            val onHold = call.phase == CallPhase.HOLDING
+            ToggleControl(Icons.Rounded.Pause, if (onHold) stringResource(R.string.resume) else stringResource(R.string.hold), checked = onHold, enabled = active && call.canHold) {
+                CallManager.setHold(call.id, !onHold)
+            }
+        }
+        if (held != null && call.canMerge) {
+            ToggleControl(Icons.Rounded.CallMerge, stringResource(R.string.merge), checked = false) { CallManager.merge(call.id) }
+        } else {
+            Spacer(Modifier.width(88.dp))
+        }
+    }
     }
 }
 
@@ -386,7 +564,7 @@ private fun ToggleControl(
     val colors = MaterialTheme.colorScheme
     // “Expressive” shape: circle when off, rounded square when on.
     val corner by animateDpAsState(if (checked) 22.dp else 34.dp, label = "corner")
-    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.width(76.dp)) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.width(88.dp)) {
         Surface(
             onClick = onClick,
             enabled = enabled,
@@ -401,7 +579,8 @@ private fun ToggleControl(
         Text(
             label,
             style = MaterialTheme.typography.labelMedium,
-            maxLines = 1,
+            textAlign = TextAlign.Center,
+            maxLines = 2,
             color = if (enabled) colors.onSurface else colors.onSurface.copy(alpha = 0.38f),
         )
     }

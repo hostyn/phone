@@ -5,6 +5,19 @@ import dev.hostyn.phone.R
 import androidx.compose.ui.res.stringResource
 import android.content.Context
 import androidx.compose.animation.Crossfade
+import androidx.compose.foundation.layout.Box
+import androidx.compose.material.icons.rounded.Block
+import androidx.compose.material.icons.rounded.DeleteSweep
+import androidx.compose.material.icons.rounded.MoreVert
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.rememberCoroutineScope
+import dev.hostyn.phone.data.BlockedNumbersRepository
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -52,9 +65,12 @@ private val Tabs = listOf(
 fun HomeScreen(
     repo: ContactsRepository,
     callLog: CallLogRepository,
+    blocked: BlockedNumbersRepository,
     onOpenContact: (Long) -> Unit,
     onCreateContact: (String?) -> Unit,
     onDialpad: () -> Unit,
+    onBlockedNumbers: () -> Unit,
+    recentsRequest: Int,
 ) {
     val context = LocalContext.current
     val prefs = remember { context.getSharedPreferences("ui", Context.MODE_PRIVATE) }
@@ -62,7 +78,17 @@ fun HomeScreen(
     var query by rememberSaveable { mutableStateOf("") }
     val placeCall = rememberCallLauncher()
 
+    var menu by remember { mutableStateOf(false) }
+    var confirmClear by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
+
     LaunchedEffect(tab) { prefs.edit().putInt("tab", tab).apply() }
+    LaunchedEffect(recentsRequest) {
+        if (recentsRequest > 0) {
+            tab = 0
+            query = ""
+        }
+    }
     // Searching always shows contacts.
     LaunchedEffect(query) { if (query.isNotBlank()) tab = 1 }
 
@@ -72,6 +98,25 @@ fun HomeScreen(
             SearchPill(
                 query = query,
                 onQuery = { query = it },
+                trailing = {
+                    Box {
+                        IconButton(onClick = { menu = true }) {
+                            Icon(Icons.Rounded.MoreVert, stringResource(R.string.more_options))
+                        }
+                        DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.blocked_numbers)) },
+                                leadingIcon = { Icon(Icons.Rounded.Block, null) },
+                                onClick = { menu = false; onBlockedNumbers() },
+                            )
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.clear_history)) },
+                                leadingIcon = { Icon(Icons.Rounded.DeleteSweep, null) },
+                                onClick = { menu = false; confirmClear = true },
+                            )
+                        }
+                    }
+                },
                 modifier = Modifier.statusBarsPadding().padding(horizontal = 16.dp, vertical = 8.dp),
             )
         },
@@ -105,6 +150,7 @@ fun HomeScreen(
             when (current) {
                 0 -> RecentsTab(
                     callLog = callLog,
+                    blocked = blocked,
                     contentPadding = padding,
                     onCall = placeCall,
                     onOpenContact = onOpenContact,
@@ -120,5 +166,21 @@ fun HomeScreen(
                 )
             }
         }
+    }
+
+    if (confirmClear) {
+        AlertDialog(
+            onDismissRequest = { confirmClear = false },
+            icon = { Icon(Icons.Rounded.DeleteSweep, null) },
+            title = { Text(stringResource(R.string.clear_history)) },
+            text = { Text(stringResource(R.string.clear_history_body)) },
+            confirmButton = {
+                TextButton(onClick = {
+                    confirmClear = false
+                    scope.launch(Dispatchers.IO) { callLog.clearAll() }
+                }) { Text(stringResource(R.string.clear)) }
+            },
+            dismissButton = { TextButton(onClick = { confirmClear = false }) { Text(stringResource(R.string.cancel)) } },
+        )
     }
 }

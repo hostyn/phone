@@ -55,6 +55,24 @@ fun Context.placeCall(number: String) {
     }
 }
 
+/** Voicemail number of the default SIM, or null if it isn't set up (or we can't read it). */
+fun Context.voicemailNumber(): String? = try {
+    getSystemService(android.telephony.TelephonyManager::class.java)?.voiceMailNumber?.takeIf { it.isNotBlank() }
+} catch (_: SecurityException) {
+    ""  // Unknown: let the system decide.
+}
+
+/** Calls voicemail. Returns false if there's no voicemail number set up. */
+fun Context.callVoicemail(): Boolean {
+    if (voicemailNumber() == null) return false
+    try {
+        getSystemService(TelecomManager::class.java).placeCall(Uri.fromParts("voicemail", "", null), Bundle())
+    } catch (_: SecurityException) {
+        Toast.makeText(this, getString(R.string.error_call_permission), Toast.LENGTH_SHORT).show()
+    }
+    return true
+}
+
 /** Returns a function that calls a number, requesting the permission if needed. */
 @Composable
 fun rememberCallLauncher(): (String) -> Unit {

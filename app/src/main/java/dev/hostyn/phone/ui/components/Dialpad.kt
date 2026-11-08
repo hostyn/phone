@@ -1,6 +1,12 @@
 package dev.hostyn.phone.ui.components
 
 import android.view.HapticFeedbackConstants
+import androidx.compose.foundation.layout.size
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Voicemail
+import androidx.compose.material3.Icon
+import androidx.compose.ui.res.stringResource
+import dev.hostyn.phone.R
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.indication
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -46,6 +52,8 @@ fun Dialpad(
     onLongPress: ((Char) -> Unit)? = null,
     keyHeight: Dp = 64.dp,
     keyColor: Color = MaterialTheme.colorScheme.surfaceContainerHigh,
+    /** Shows the voicemail icon on the 1 key (long press calls voicemail). */
+    voicemailKey: Boolean = false,
 ) {
     Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Keys.chunked(3).forEach { row ->
@@ -58,6 +66,7 @@ fun Dialpad(
                         onDown = onKeyDown,
                         onUp = onKeyUp,
                         onLongPress = onLongPress,
+                        voicemail = voicemailKey && digit == '1',
                         modifier = Modifier.weight(1f).height(keyHeight),
                     )
                 }
@@ -74,6 +83,7 @@ private fun DialKey(
     onDown: (Char) -> Unit,
     onUp: (Char) -> Unit,
     onLongPress: ((Char) -> Unit)?,
+    voicemail: Boolean,
     modifier: Modifier,
 ) {
     val interaction = remember { MutableInteractionSource() }
@@ -111,7 +121,14 @@ private fun DialKey(
                     fontWeight = FontWeight.Normal,
                     lineHeight = 30.sp,
                 )
-                if (letters.isNotEmpty()) {
+                if (voicemail) {
+                    Icon(
+                        Icons.Rounded.Voicemail,
+                        stringResource(R.string.voicemail),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(16.dp),
+                    )
+                } else if (letters.isNotEmpty()) {
                     Text(
                         letters,
                         style = MaterialTheme.typography.labelSmall,
