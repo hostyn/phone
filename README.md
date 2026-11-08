@@ -55,27 +55,27 @@ To restore, use **Settings → Import contacts** and pick the newest file.
 - Keypad tones and vibration.
 - English and Spanish, with per-app language selection on Android 13+.
 
-## Requirements
+## Install
 
-- Android 8.0 (API 26) or later. Targets API 34.
-- To build: JDK 17 and the Android SDK.
+Download the APK from the [latest release](https://github.com/hostyn/phone/releases/latest) and open it on your phone (Android 8.0 or later). Then open the app, grant the permissions and accept the prompt to make it the default phone app.
+
+Releases are signed with this certificate. You can check it with [AppVerifier](https://github.com/soupslurpr/AppVerifier) or `apksigner verify --print-certs`:
+
+```
+dev.hostyn.phone
+EC:D6:BD:FC:52:58:65:A9:B5:C3:00:A7:60:5F:9F:E3:B6:B7:70:F2:84:50:16:C6:63:8D:06:B8:F0:C5:64:36
+```
 
 ## Building
 
-```bash
-./gradlew assembleDebug        # app/build/outputs/apk/debug/app-debug.apk
-./gradlew assembleRelease      # minified with R8
-```
-
-Install on a connected device:
+Requirements: JDK 17 and the Android SDK.
 
 ```bash
-./gradlew installDebug
+./gradlew installDebug         # build and install a debug build on a connected device
+./gradlew assembleRelease      # unsigned release build, minified with R8
 ```
 
-> The `release` build type is signed with the local debug key so it can be installed directly. Before distributing it, set up your own signing key in `app/build.gradle.kts`.
-
-After installing, open the app, grant the permissions and accept the prompt to make it the default phone app.
+To make a signed release, run `scripts/release.sh`. It builds the release, signs it with the key in `~/keystores/phone-release.p12` (or the path you pass as the first argument), asking for the password, and writes `dist/phone-<version>.apk`.
 
 ## Tech stack
 
