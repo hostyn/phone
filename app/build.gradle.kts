@@ -5,11 +5,11 @@ plugins {
 }
 
 android {
-    namespace = "dev.hostyn.contactos"
+    namespace = "dev.hostyn.phone"
     compileSdk = 34
 
     defaultConfig {
-        applicationId = "dev.hostyn.contactos"
+        applicationId = "dev.hostyn.phone"
         minSdk = 26
         targetSdk = 34
         versionCode = 1

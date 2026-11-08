@@ -4,7 +4,7 @@
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
-    <!-- Auricular de teléfono (Material «call») centrado en la zona segura de 66dp -->
+    <!-- Phone handset (Material "call" icon) centered in the 66dp safe zone -->
     <group
         android:scaleX="1.75"
         android:scaleY="1.75"
