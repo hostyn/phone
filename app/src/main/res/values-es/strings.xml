@@ -154,4 +154,22 @@
     <string name="voicemail">Buzón de voz</string>
     <string name="no_voicemail">No hay ningún número de buzón de voz configurado para esta SIM.</string>
     <string name="set_up">Configurar</string>
+    <!-- Recents and call history -->
+    <string name="filter_all">Todas</string>
+    <string name="filter_missed">Perdidas</string>
+    <string name="no_missed_calls">No hay llamadas perdidas</string>
+    <string name="no_missed_calls_body">Las llamadas que no contestes aparecerán aquí.</string>
+    <string name="call_history">Historial de llamadas</string>
+    <string name="call_incoming">Llamada entrante</string>
+    <string name="call_outgoing">Llamada saliente</string>
+    <string name="call_rejected">Llamada rechazada</string>
+    <string name="call_blocked">Llamada bloqueada</string>
+    <string name="show_more">Mostrar más</string>
+    <string name="show_less">Mostrar menos</string>
+    <string name="duration_seconds">%1$d s</string>
+    <string name="duration_minutes">%1$d min %2$d s</string>
+    <string name="duration_hours">%1$d h %2$d min</string>
+    <string name="add">Añadir</string>
+    <string name="delete_number_history">Borrar historial de llamadas</string>
+    <string name="delete_number_history_body">Se eliminarán del historial todas las llamadas con %1$s.</string>
 </resources>

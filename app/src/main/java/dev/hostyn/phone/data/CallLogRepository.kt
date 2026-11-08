@@ -38,7 +38,15 @@ class CallLogRepository(private val context: Context) {
     private val resolver: ContentResolver get() = context.contentResolver
 
 
-    fun observe(): Flow<List<RecentCall>> = callbackFlow {
+    fun observe(missedOnly: Boolean = false): Flow<List<RecentCall>> =
+        changes().map { query(missedOnly) }.flowOn(Dispatchers.IO)
+
+    /** Every call with any of these numbers, newest first. */
+    fun observeHistory(numbers: List<String>): Flow<List<CallEntry>> =
+        changes(contacts = false).map { history(numbers) }.flowOn(Dispatchers.IO)
+
+    /** Emits once at start and again whenever the call log (or contacts) change. */
+    private fun changes(contacts: Boolean = true): Flow<Unit> = callbackFlow {
         val observer = object : ContentObserver(Handler(Looper.getMainLooper())) {
             override fun onChange(selfChange: Boolean) {
                 trySend(Unit)
@@ -46,20 +54,44 @@ class CallLogRepository(private val context: Context) {
         }
         resolver.registerContentObserver(Calls.CONTENT_URI, true, observer)
         // Names depend on contacts: refresh when they change too.
-        resolver.registerContentObserver(android.provider.ContactsContract.Contacts.CONTENT_URI, true, observer)
+        if (contacts) resolver.registerContentObserver(android.provider.ContactsContract.Contacts.CONTENT_URI, true, observer)
         trySend(Unit)
         awaitClose { resolver.unregisterContentObserver(observer) }
-    }.conflate().map { query() }.flowOn(Dispatchers.IO)
+    }.conflate()
+
+    private fun history(numbers: List<String>): List<CallEntry> {
+        val wanted = numbers.filter { it.isNotBlank() }
+        if (wanted.isEmpty()) return emptyList()
+        val out = mutableListOf<CallEntry>()
+        try {
+            resolver.query(
+                Calls.CONTENT_URI,
+                arrayOf(Calls._ID, Calls.NUMBER, Calls.TYPE, Calls.DATE, Calls.DURATION),
+                null, null, "${Calls.DATE} DESC",
+            )?.use { c ->
+                while (c.moveToNext()) {
+                    val number = c.getString(1).orEmpty()
+                    if (wanted.any { samePhone(it, number) }) {
+                        out += CallEntry(c.getLong(0), number, c.getInt(2), c.getLong(3), c.getLong(4))
+                    }
+                }
+            }
+        } catch (_: SecurityException) {
+        }
+        return out
+    }
 
     private data class Raw(val id: Long, val number: String, val type: Int, val date: Long)
 
-    private fun query(): List<RecentCall> {
+    private fun query(missedOnly: Boolean): List<RecentCall> {
         val raw = mutableListOf<Raw>()
         try {
             resolver.query(
                 Calls.CONTENT_URI,
                 arrayOf(Calls._ID, Calls.NUMBER, Calls.TYPE, Calls.DATE, Calls.NUMBER_PRESENTATION),
-                null, null, "${Calls.DATE} DESC",
+                if (missedOnly) "${Calls.TYPE} = ?" else null,
+                if (missedOnly) arrayOf(Calls.MISSED_TYPE.toString()) else null,
+                "${Calls.DATE} DESC",
             )?.use { c ->
                 while (c.moveToNext() && raw.size < 500) {
                     val hidden = c.getInt(4) != Calls.PRESENTATION_ALLOWED
@@ -119,6 +151,9 @@ class CallLogRepository(private val context: Context) {
         false
     }
 }
+
+/** A single call from the call log. */
+data class CallEntry(val id: Long, val number: String, val type: Int, val date: Long, val duration: Long)
 
 /** A missed call nobody has looked at yet. */
 data class MissedCall(val number: String, val date: Long, val info: CallerInfo?)

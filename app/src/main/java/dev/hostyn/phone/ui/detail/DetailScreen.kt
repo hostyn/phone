@@ -1,5 +1,7 @@
 package dev.hostyn.phone.ui.detail
 
+import dev.hostyn.phone.ui.components.CallHistoryCard
+import dev.hostyn.phone.data.CallLogRepository
 import dev.hostyn.phone.ui.components.rememberOnResume
 import dev.hostyn.phone.ui.components.isDefaultDialer
 import dev.hostyn.phone.ui.components.BlockDialog
@@ -90,6 +92,7 @@ private object Loading
 fun DetailScreen(
     repo: ContactsRepository,
     blocked: BlockedNumbersRepository,
+    callLog: CallLogRepository,
     contactId: Long,
     onBack: () -> Unit,
     onEdit: () -> Unit,
@@ -115,6 +118,7 @@ fun DetailScreen(
     val contact = state as? ContactDetail
     val phones = contact?.phones?.map { it.value }.orEmpty()
     val isBlocked = phones.isNotEmpty() && phones.all { blockedList.isBlocked(it) }
+    val history by remember(phones) { callLog.observeHistory(phones) }.collectAsState(initial = emptyList())
     val blockedMsg = stringResource(R.string.number_blocked)
     val unblockedMsg = stringResource(R.string.number_unblocked)
     val errorMsg = stringResource(R.string.error_block)
@@ -259,6 +263,10 @@ fun DetailScreen(
                     }
                 }
             }
+            if (history.isNotEmpty()) {
+                Spacer(Modifier.height(12.dp))
+                CallHistoryCard(history)
+            }
         }
     }
 
@@ -292,7 +300,7 @@ fun DetailScreen(
 }
 
 @Composable
-private fun QuickAction(icon: ImageVector, label: String, enabled: Boolean, onClick: () -> Unit) {
+internal fun QuickAction(icon: ImageVector, label: String, enabled: Boolean, onClick: () -> Unit) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         FilledTonalIconButton(
             onClick = onClick,

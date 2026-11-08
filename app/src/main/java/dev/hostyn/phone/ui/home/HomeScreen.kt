@@ -70,6 +70,7 @@ fun HomeScreen(
     onCreateContact: (String?) -> Unit,
     onDialpad: () -> Unit,
     onBlockedNumbers: () -> Unit,
+    onOpenNumber: (String) -> Unit,
     recentsRequest: Int,
 ) {
     val context = LocalContext.current
@@ -154,6 +155,7 @@ fun HomeScreen(
                     contentPadding = padding,
                     onCall = placeCall,
                     onOpenContact = onOpenContact,
+                    onOpenNumber = onOpenNumber,
                     onAddContact = { onCreateContact(it) },
                 )
                 else -> ContactsTab(

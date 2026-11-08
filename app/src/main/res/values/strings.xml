@@ -155,4 +155,22 @@
     <string name="voicemail">Voicemail</string>
     <string name="no_voicemail">There\'s no voicemail number set up for this SIM.</string>
     <string name="set_up">Set up</string>
+    <!-- Recents and call history -->
+    <string name="filter_all">All</string>
+    <string name="filter_missed">Missed</string>
+    <string name="no_missed_calls">No missed calls</string>
+    <string name="no_missed_calls_body">Calls you don\'t answer will show up here.</string>
+    <string name="call_history">Call history</string>
+    <string name="call_incoming">Incoming call</string>
+    <string name="call_outgoing">Outgoing call</string>
+    <string name="call_rejected">Declined call</string>
+    <string name="call_blocked">Blocked call</string>
+    <string name="show_more">Show more</string>
+    <string name="show_less">Show less</string>
+    <string name="duration_seconds">%1$d s</string>
+    <string name="duration_minutes">%1$d min %2$d s</string>
+    <string name="duration_hours">%1$d h %2$d min</string>
+    <string name="add">Add</string>
+    <string name="delete_number_history">Delete call history</string>
+    <string name="delete_number_history_body">All calls with %1$s will be deleted from your history.</string>
 </resources>

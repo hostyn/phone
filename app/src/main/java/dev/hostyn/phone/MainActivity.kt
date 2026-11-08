@@ -34,6 +34,7 @@ import dev.hostyn.phone.ui.detail.DetailScreen
 import dev.hostyn.phone.ui.dialer.DialerScreen
 import dev.hostyn.phone.ui.edit.EditScreen
 import dev.hostyn.phone.ui.home.HomeScreen
+import dev.hostyn.phone.ui.number.NumberScreen
 import dev.hostyn.phone.ui.theme.PhoneTheme
 
 class MainActivity : ComponentActivity() {
@@ -105,7 +106,20 @@ private fun AppNavigation(app: PhoneApp, dialRequest: MutableState<String?>, rec
                 },
                 onDialpad = { nav.navigate("dialpad") },
                 onBlockedNumbers = { nav.navigate("blocked") },
+                onOpenNumber = { nav.navigate("number/${Uri.encode(it)}") },
                 recentsRequest = recentsRequest.intValue,
+            )
+        }
+        composable("number/{number}") { entry ->
+            NumberScreen(
+                number = entry.arguments?.getString("number").orEmpty(),
+                callLog = app.callLog,
+                blocked = app.blocked,
+                onBack = { nav.popBackStack() },
+                onOpenContact = { id ->
+                    nav.navigate("detail/$id") { popUpTo("home") }
+                },
+                onAddContact = { nav.navigate("edit?phone=${Uri.encode(it)}") },
             )
         }
         composable("blocked") {
@@ -135,6 +149,7 @@ private fun AppNavigation(app: PhoneApp, dialRequest: MutableState<String?>, rec
             DetailScreen(
                 repo = app.repository,
                 blocked = app.blocked,
+                callLog = app.callLog,
                 contactId = id,
                 onBack = { nav.popBackStack() },
                 onEdit = { nav.navigate("edit?id=$id") },

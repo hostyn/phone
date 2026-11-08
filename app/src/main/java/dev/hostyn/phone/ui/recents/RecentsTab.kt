@@ -1,5 +1,10 @@
 package dev.hostyn.phone.ui.recents
 
+import dev.hostyn.phone.ui.components.callTypeIcon
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.material3.FilterChip
+import androidx.compose.material.icons.rounded.Check
+import androidx.compose.foundation.layout.Arrangement
 import android.text.format.DateUtils
 import android.view.HapticFeedbackConstants
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -126,6 +131,7 @@ fun RecentsTab(
     contentPadding: PaddingValues,
     onCall: (String) -> Unit,
     onOpenContact: (Long) -> Unit,
+    onOpenNumber: (String) -> Unit,
     onAddContact: (String) -> Unit,
 ) {
     val context = LocalContext.current
@@ -161,7 +167,8 @@ fun RecentsTab(
         onDispose { lifecycle.removeObserver(observer) }
     }
 
-    val calls by remember { callLog.observe() }.collectAsState(initial = null)
+    var missedOnly by rememberSaveable { mutableStateOf(false) }
+    val calls by remember(missedOnly) { callLog.observe(missedOnly) }.collectAsState(initial = null)
     val blockedList by remember { blocked.observe() }.collectAsState(initial = emptyList())
     val scope = rememberCoroutineScope()
     var toBlock by remember { mutableStateOf<RecentCall?>(null) }
@@ -195,34 +202,63 @@ fun RecentsTab(
         )
     }
     val list = calls
-    when {
-        list == null -> Box(Modifier.fillMaxSize().padding(contentPadding), Alignment.Center) { CircularProgressIndicator() }
-        list.isEmpty() -> EmptyState(
+    val bottom = PaddingValues(bottom = contentPadding.calculateBottomPadding())
+    if (list != null && list.isEmpty() && !missedOnly) {
+        EmptyState(
             Icons.Rounded.History,
             stringResource(R.string.no_recent_calls),
             stringResource(R.string.no_recent_calls_body),
             Modifier.fillMaxSize().padding(contentPadding),
         )
-        else -> {
-            val rows = remember(list) { buildRows(context, list) }
-            LazyColumn(
-                contentPadding = PaddingValues(
-                    top = contentPadding.calculateTopPadding(),
-                    bottom = contentPadding.calculateBottomPadding() + 88.dp,
-                ),
-                modifier = Modifier.fillMaxSize(),
-            ) {
-                items(rows, key = { it.key }) { row ->
-                    when (row) {
-                        is RecentRow.Day -> Text(
-                            row.title,
-                            style = MaterialTheme.typography.titleSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.animateItem().padding(start = 24.dp, top = 16.dp, bottom = 8.dp),
-                        )
-                        is RecentRow.Entry -> RecentCallRow(
-                            row, blockedList.isBlocked(row.call.number), onCall, onOpenContact, onAddContact, actions, Modifier.animateItem(),
-                        )
+        return
+    }
+    Column(Modifier.fillMaxSize().padding(top = contentPadding.calculateTopPadding())) {
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            modifier = Modifier.padding(horizontal = 16.dp).padding(top = 4.dp),
+        ) {
+            FilterChip(
+                selected = !missedOnly,
+                onClick = { missedOnly = false },
+                label = { Text(stringResource(R.string.filter_all)) },
+                leadingIcon = if (!missedOnly) ({ Icon(Icons.Rounded.Check, null, Modifier.size(18.dp)) }) else null,
+            )
+            FilterChip(
+                selected = missedOnly,
+                onClick = { missedOnly = true },
+                label = { Text(stringResource(R.string.filter_missed)) },
+                leadingIcon = if (missedOnly) ({ Icon(Icons.Rounded.Check, null, Modifier.size(18.dp)) }) else null,
+            )
+        }
+        Box(Modifier.weight(1f)) {
+            when {
+                list == null -> Box(Modifier.fillMaxSize().padding(bottom), Alignment.Center) { CircularProgressIndicator() }
+                list.isEmpty() -> EmptyState(
+                    Icons.AutoMirrored.Rounded.CallMissed,
+                    stringResource(R.string.no_missed_calls),
+                    stringResource(R.string.no_missed_calls_body),
+                    Modifier.fillMaxSize().padding(bottom),
+                )
+                else -> {
+                    val rows = remember(list) { buildRows(context, list) }
+                    LazyColumn(
+                        contentPadding = PaddingValues(bottom = contentPadding.calculateBottomPadding() + 88.dp),
+                        modifier = Modifier.fillMaxSize(),
+                    ) {
+                        items(rows, key = { it.key }) { row ->
+                            when (row) {
+                                is RecentRow.Day -> Text(
+                                    row.title,
+                                    style = MaterialTheme.typography.titleSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.animateItem().padding(start = 24.dp, top = 16.dp, bottom = 8.dp),
+                                )
+                                is RecentRow.Entry -> RecentCallRow(
+                                    row, blockedList.isBlocked(row.call.number), onCall, onOpenContact, onOpenNumber, onAddContact, actions,
+                                    Modifier.animateItem(),
+                                )
+                            }
+                        }
                     }
                 }
             }
@@ -237,6 +273,7 @@ private fun RecentCallRow(
     isBlocked: Boolean,
     onCall: (String) -> Unit,
     onOpenContact: (Long) -> Unit,
+    onOpenNumber: (String) -> Unit,
     onAddContact: (String) -> Unit,
     actions: RecentActions,
     modifier: Modifier = Modifier,
@@ -251,14 +288,7 @@ private fun RecentCallRow(
     val title = call.name ?: if (hidden) stringResource(R.string.private_number) else formatPhone(context, call.number)
     val colors = MaterialTheme.colorScheme
 
-    val (icon, tint) = when (call.type) {
-        Calls.OUTGOING_TYPE -> Icons.AutoMirrored.Rounded.CallMade to colors.primary
-        Calls.MISSED_TYPE -> Icons.AutoMirrored.Rounded.CallMissed to colors.error
-        Calls.REJECTED_TYPE -> Icons.Rounded.CallEnd to colors.onSurfaceVariant
-        Calls.BLOCKED_TYPE -> Icons.Rounded.Block to colors.onSurfaceVariant
-        Calls.VOICEMAIL_TYPE -> Icons.Rounded.Voicemail to colors.onSurfaceVariant
-        else -> Icons.AutoMirrored.Rounded.CallReceived to colors.tertiary
-    }
+    val (icon, tint) = callTypeIcon(call.type, colors)
     val time = DateFormat.getTimeFormat(context).format(java.util.Date(call.date))
     val subtitle = listOfNotNull(call.numberLabel, time).joinToString(" · ")
 
@@ -276,7 +306,7 @@ private fun RecentCallRow(
             .combinedClickable(
                 onClick = {
                     if (hidden) menu = true
-                    else if (call.contactId != null) onOpenContact(call.contactId) else onAddContact(call.number)
+                    else if (call.contactId != null) onOpenContact(call.contactId) else onOpenNumber(call.number)
                 },
                 onLongClick = {
                     view.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
