@@ -1,3 +1,5 @@
+@file:OptIn(ExperimentalMaterial3ExpressiveApi::class)
+
 package dev.hostyn.phone.ui.detail
 
 import dev.hostyn.phone.ui.components.CallHistoryCard
@@ -111,6 +113,20 @@ import androidx.compose.material.icons.rounded.Share
 import androidx.compose.material.icons.rounded.Voicemail
 import androidx.compose.material3.Checkbox
 import dev.hostyn.phone.data.shareContact
+import android.content.Context
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.ButtonGroupScope
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.LoadingIndicator
+import androidx.compose.material3.SegmentedListItem
+import dev.hostyn.phone.ui.components.ActionGroup
+import dev.hostyn.phone.ui.components.ActionSize
+import dev.hostyn.phone.ui.components.ListHeader
+import dev.hostyn.phone.ui.components.SegmentedGroup
+import dev.hostyn.phone.ui.components.SegmentedGroupScope
+import dev.hostyn.phone.ui.components.action
+import dev.hostyn.phone.ui.components.segmentedColors
+import dev.hostyn.phone.ui.theme.containerTransform
 import dev.hostyn.phone.ui.components.FieldKind
 import dev.hostyn.phone.ui.components.formatEventDate
 import dev.hostyn.phone.ui.components.openUrl
@@ -120,7 +136,7 @@ import dev.hostyn.phone.ui.components.typeLabel
 
 private object Loading
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun DetailScreen(
     repo: ContactsRepository,
@@ -129,6 +145,7 @@ fun DetailScreen(
     contactId: Long,
     onBack: () -> Unit,
     onEdit: () -> Unit,
+    transformKey: String? = null,
 ) {
     var left by remember { mutableStateOf(false) }
     val leave = { if (!left) { left = true; onBack() } }
@@ -192,7 +209,10 @@ fun DetailScreen(
         scope.launch { snackbar.showSnackbar(copiedText) }
     }
 
+    val sipLabel = stringResource(R.string.sip_address)
     Scaffold(
+        // Grows out of the row it was opened from (container transform).
+        modifier = Modifier.containerTransform(transformKey),
         containerColor = MaterialTheme.colorScheme.surface,
         snackbarHost = { SnackbarHost(snackbar) },
         topBar = {
@@ -200,17 +220,17 @@ fun DetailScreen(
                 title = {},
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.surface),
                 navigationIcon = {
-                    IconButton(onClick = leave) { Icon(Icons.AutoMirrored.Rounded.ArrowBack, stringResource(R.string.back)) }
+                    IconButton(onClick = leave, shapes = IconButtonDefaults.shapes()) { Icon(Icons.AutoMirrored.Rounded.ArrowBack, stringResource(R.string.back)) }
                 },
                 actions = {
                     if (contact != null) {
-                        IconButton(onClick = { scope.launch { repo.setStarred(contact.id, !contact.starred) } }) {
+                        IconButton(onClick = { scope.launch { repo.setStarred(contact.id, !contact.starred) } }, shapes = IconButtonDefaults.shapes()) {
                             if (contact.starred) Icon(Icons.Rounded.Star, stringResource(R.string.remove_favorite), tint = MaterialTheme.colorScheme.primary)
                             else Icon(Icons.Rounded.StarOutline, stringResource(R.string.add_favorite))
                         }
-                        IconButton(onClick = onEdit) { Icon(Icons.Rounded.Edit, stringResource(R.string.edit)) }
+                        IconButton(onClick = onEdit, shapes = IconButtonDefaults.shapes()) { Icon(Icons.Rounded.Edit, stringResource(R.string.edit)) }
                         Box {
-                            IconButton(onClick = { menu = true }) { Icon(Icons.Rounded.MoreVert, stringResource(R.string.more_options)) }
+                            IconButton(onClick = { menu = true }, shapes = IconButtonDefaults.shapes()) { Icon(Icons.Rounded.MoreVert, stringResource(R.string.more_options)) }
                             DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
                                 if (contact.lookupKey != null) {
                                     DropdownMenuItem(
@@ -253,7 +273,7 @@ fun DetailScreen(
         },
     ) { padding ->
         if (contact == null) {
-            Box(Modifier.fillMaxSize().padding(padding), Alignment.Center) { CircularProgressIndicator() }
+            Box(Modifier.fillMaxSize().padding(padding), Alignment.Center) { LoadingIndicator() }
             return@Scaffold
         }
         Column(
@@ -270,7 +290,7 @@ fun DetailScreen(
             Spacer(Modifier.height(20.dp))
             Text(
                 contact.displayName.ifBlank { stringResource(R.string.no_name) },
-                style = MaterialTheme.typography.headlineMedium,
+                style = MaterialTheme.typography.headlineMediumEmphasized,
                 textAlign = TextAlign.Center,
                 modifier = Modifier.padding(horizontal = 24.dp),
             )
@@ -299,7 +319,7 @@ fun DetailScreen(
                     modifier = Modifier.padding(horizontal = 24.dp),
                 ) {
                     contact.groupTitles.forEach { title ->
-                        Surface(shape = RoundedCornerShape(8.dp), color = MaterialTheme.colorScheme.secondaryContainer) {
+                        Surface(shape = MaterialTheme.shapes.small, color = MaterialTheme.colorScheme.secondaryContainer) {
                             Text(
                                 title,
                                 style = MaterialTheme.typography.labelLarge,
@@ -323,13 +343,16 @@ fun DetailScreen(
             val firstPhone = contact.phones.firstOrNull()?.value
             val firstEmail = contact.emails.firstOrNull()?.value
             val chats = if (firstPhone != null) messagingButtons else emptyList()
-            QuickActionRow(3 + chats.size) { item ->
-                QuickAction(Icons.Rounded.Call, stringResource(R.string.call), firstPhone != null, item) { firstPhone?.let(placeCall) }
-                QuickAction(Icons.AutoMirrored.Rounded.Message, stringResource(R.string.message), firstPhone != null, item) { firstPhone?.let(context::sms) }
-                chats.forEach { app -> QuickAction(app, firstPhone!!, item) }
-                QuickAction(Icons.Rounded.MailOutline, stringResource(R.string.email), firstEmail != null, item) { firstEmail?.let(context::email) }
+            val callLabel = stringResource(R.string.call)
+            val messageLabel = stringResource(R.string.message)
+            val emailLabel = stringResource(R.string.email)
+            ActionGroup(Modifier.padding(horizontal = 16.dp)) {
+                action(Icons.Rounded.Call, callLabel, ActionSize.Medium, enabled = firstPhone != null) { firstPhone?.let(placeCall) }
+                action(Icons.AutoMirrored.Rounded.Message, messageLabel, ActionSize.Medium, enabled = firstPhone != null) { firstPhone?.let(context::sms) }
+                chats.forEach { app -> chatAction(app, firstPhone!!, context) }
+                action(Icons.Rounded.MailOutline, emailLabel, ActionSize.Medium, enabled = firstEmail != null) { firstEmail?.let(context::email) }
             }
-            Spacer(Modifier.height(28.dp))
+            Spacer(Modifier.height(16.dp))
 
             val hasInfo = listOf(data.phones, data.emails, data.sips, data.ims, data.addresses, data.websites, data.events, data.relations)
                 .any { it.isNotEmpty() }
@@ -340,34 +363,24 @@ fun DetailScreen(
                     style = MaterialTheme.typography.bodyMedium,
                 )
             } else {
-                Surface(
-                    shape = RoundedCornerShape(28.dp),
-                    color = MaterialTheme.colorScheme.surfaceContainer,
-                    modifier = Modifier.padding(horizontal = 16.dp).fillMaxWidth(),
-                ) {
-                    Column(Modifier.padding(vertical = 8.dp)) {
-                        Text(
-                            stringResource(R.string.contact_info),
-                            style = MaterialTheme.typography.titleSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.padding(start = 20.dp, top = 12.dp, bottom = 4.dp),
-                        )
+                ListHeader(stringResource(R.string.contact_info), Modifier.fillMaxWidth())
+                SegmentedGroup {
                         contact.phones.forEach { p ->
-                            InfoRow(
+                            info(
                                 icon = Icons.Rounded.Phone,
                                 value = formatPhone(context, p.value),
                                 label = p.phoneLabel(context),
                                 onClick = { placeCall(p.value) },
                                 onLongClick = { copy(p.value) },
                                 trailing = {
-                                    IconButton(onClick = { context.sms(p.value) }) {
+                                    IconButton(onClick = { context.sms(p.value) }, shapes = IconButtonDefaults.shapes()) {
                                         Icon(Icons.AutoMirrored.Rounded.Message, stringResource(R.string.send_message))
                                     }
                                 },
                             )
                         }
                         contact.emails.forEach { e ->
-                            InfoRow(
+                            info(
                                 icon = Icons.Rounded.Email,
                                 value = e.value,
                                 label = e.emailLabel(context),
@@ -376,16 +389,16 @@ fun DetailScreen(
                             )
                         }
                         data.sips.forEach { sip ->
-                            InfoRow(
+                            info(
                                 icon = Icons.Rounded.Dialpad,
                                 value = sip.value,
-                                label = "${stringResource(R.string.sip_address)} · ${FieldKind.Sips.label(context, sip.type, sip.label)}",
+                                label = "$sipLabel · ${FieldKind.Sips.label(context, sip.type, sip.label)}",
                                 onClick = { placeCall("sip:" + sip.value.removePrefix("sip:")) },
                                 onLongClick = { copy(sip.value) },
                             )
                         }
                         data.ims.forEach { im ->
-                            InfoRow(
+                            info(
                                 icon = Icons.Rounded.Chat,
                                 value = im.handle,
                                 label = im.protocolLabel(context),
@@ -394,7 +407,7 @@ fun DetailScreen(
                             )
                         }
                         data.addresses.forEach { a ->
-                            InfoRow(
+                            info(
                                 icon = Icons.Rounded.LocationOn,
                                 value = a.display(),
                                 label = a.typeLabel(context),
@@ -403,7 +416,7 @@ fun DetailScreen(
                             )
                         }
                         data.websites.forEach { w ->
-                            InfoRow(
+                            info(
                                 icon = Icons.Rounded.Language,
                                 value = w.value,
                                 label = FieldKind.Websites.label(context, w.type, w.label),
@@ -413,7 +426,7 @@ fun DetailScreen(
                         }
                         data.events.forEach { e ->
                             val date = formatEventDate(e.value)
-                            InfoRow(
+                            info(
                                 icon = Icons.Rounded.Event,
                                 value = date,
                                 label = FieldKind.Events.label(context, e.type, e.label),
@@ -422,7 +435,7 @@ fun DetailScreen(
                             )
                         }
                         data.relations.forEach { r ->
-                            InfoRow(
+                            info(
                                 icon = Icons.Rounded.People,
                                 value = r.value,
                                 label = FieldKind.Relations.label(context, r.type, r.label),
@@ -430,29 +443,19 @@ fun DetailScreen(
                                 onLongClick = { copy(r.value) },
                             )
                         }
-                    }
                 }
             }
             if (!data.note.isBlank) {
-                Spacer(Modifier.height(12.dp))
-                Surface(
-                    shape = RoundedCornerShape(28.dp),
-                    color = MaterialTheme.colorScheme.surfaceContainer,
-                    modifier = Modifier.padding(horizontal = 16.dp).fillMaxWidth(),
-                ) {
-                    Column(Modifier.padding(horizontal = 20.dp, vertical = 16.dp)) {
-                        Text(
-                            stringResource(R.string.notes),
-                            style = MaterialTheme.typography.titleSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                        Spacer(Modifier.height(8.dp))
-                        SelectionContainer { Text(data.note.value.trim(), style = MaterialTheme.typography.bodyLarge) }
+                ListHeader(stringResource(R.string.notes), Modifier.fillMaxWidth())
+                SegmentedGroup {
+                    item { shapes ->
+                        SegmentedListItem(shapes = shapes, colors = segmentedColors()) {
+                            SelectionContainer { Text(data.note.value.trim()) }
+                        }
                     }
                 }
             }
             if (history.isNotEmpty()) {
-                Spacer(Modifier.height(12.dp))
                 CallHistoryCard(history)
             }
         }
@@ -475,6 +478,7 @@ fun DetailScreen(
             text = { Text(stringResource(R.string.delete_contact_message, contact.displayName)) },
             confirmButton = {
                 TextButton(
+                    shapes = ButtonDefaults.shapes(),
                     enabled = !deleting,
                     onClick = {
                         deleting = true
@@ -482,86 +486,34 @@ fun DetailScreen(
                     },
                 ) { Text(stringResource(R.string.delete)) }
             },
-            dismissButton = { TextButton(onClick = { confirmDelete = false }) { Text(stringResource(R.string.cancel)) } },
+            dismissButton = { TextButton(onClick = { confirmDelete = false }, shapes = ButtonDefaults.shapes()) { Text(stringResource(R.string.cancel)) } },
         )
     }
 }
 
-/** A row of [QuickAction]s: spaced out when there are few, sharing the width when there are many. */
-@Composable
-internal fun QuickActionRow(count: Int, content: @Composable (item: Modifier) -> Unit) {
-    if (count <= 3) {
-        Row(horizontalArrangement = Arrangement.spacedBy(28.dp)) { content(Modifier.width(64.dp)) }
-    } else {
-        Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-            content(Modifier.weight(1f))
-        }
-    }
-}
+/** A chat app's action: its own icon, which already has its colors. */
+internal fun ButtonGroupScope.chatAction(app: MessagingButton, number: String, context: Context) =
+    action({ Image(app.icon, null, Modifier.size(28.dp)) }, app.label, ActionSize.Medium) { app.open(context, number) }
 
-@Composable
-internal fun QuickAction(icon: ImageVector, label: String, enabled: Boolean, modifier: Modifier = Modifier.width(64.dp), onClick: () -> Unit) =
-    QuickAction(label, enabled, modifier, onClick) { Icon(icon, null) }
-
-/** A chat app's button: its own icon, which already has its colors. */
-@Composable
-internal fun QuickAction(app: MessagingButton, number: String, modifier: Modifier) {
-    val context = LocalContext.current
-    QuickAction(app.label, enabled = true, modifier = modifier, onClick = { app.open(context, number) }) {
-        Image(app.icon, null, modifier = Modifier.size(30.dp))
-    }
-}
-
-@Composable
-internal fun QuickAction(label: String, enabled: Boolean, modifier: Modifier, onClick: () -> Unit, icon: @Composable () -> Unit) {
-    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = modifier) {
-        FilledTonalIconButton(
-            onClick = onClick,
-            enabled = enabled,
-            modifier = Modifier.widthIn(max = 64.dp).fillMaxWidth().height(52.dp),
-            shape = RoundedCornerShape(18.dp),
-            colors = IconButtonDefaults.filledTonalIconButtonColors(
-                containerColor = MaterialTheme.colorScheme.primaryContainer,
-                contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
-            ),
-        ) { icon() }
-        Spacer(Modifier.height(6.dp))
-        Text(
-            label,
-            style = MaterialTheme.typography.labelMedium,
-            color = if (enabled) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f),
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            textAlign = TextAlign.Center,
-        )
-    }
-}
-
-@OptIn(ExperimentalFoundationApi::class)
-@Composable
-private fun InfoRow(
+/** One piece of contact information in the segmented list: tap to use it, long-press to copy it. */
+private fun SegmentedGroupScope.info(
     icon: ImageVector,
     value: String,
     label: String,
     onClick: () -> Unit,
     onLongClick: () -> Unit,
     trailing: (@Composable () -> Unit)? = null,
-) {
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 8.dp)
-            .clip(RoundedCornerShape(20.dp))
-            .combinedClickable(onClick = onClick, onLongClick = onLongClick)
-            .padding(start = 12.dp, end = 4.dp, top = 10.dp, bottom = 10.dp),
+) = item { shapes ->
+    SegmentedListItem(
+        onClick = onClick,
+        onLongClick = onLongClick,
+        onLongClickLabel = stringResource(R.string.copy),
+        shapes = shapes,
+        colors = segmentedColors(),
+        leadingContent = { Icon(icon, null, tint = MaterialTheme.colorScheme.primary) },
+        supportingContent = { Text(label) },
+        trailingContent = trailing,
     ) {
-        Icon(icon, null, tint = MaterialTheme.colorScheme.primary)
-        Spacer(Modifier.width(20.dp))
-        Column(Modifier.weight(1f)) {
-            Text(value, style = MaterialTheme.typography.bodyLarge)
-            Text(label, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        }
-        trailing?.invoke()
+        Text(value)
     }
 }

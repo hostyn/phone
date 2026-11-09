@@ -1,5 +1,8 @@
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
+
 package dev.hostyn.phone.ui.components
 
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Block
 import androidx.compose.material3.AlertDialog
@@ -19,10 +22,10 @@ fun BlockDialog(title: String, body: String, onDismiss: () -> Unit, onConfirm: (
         title = { Text(stringResource(R.string.block_title, title)) },
         text = { Text(body) },
         confirmButton = {
-            TextButton(onClick = onConfirm) {
+            TextButton(shapes = ButtonDefaults.shapes(), onClick = onConfirm) {
                 Text(stringResource(R.string.block), color = MaterialTheme.colorScheme.error)
             }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) } },
+        dismissButton = { TextButton(shapes = ButtonDefaults.shapes(), onClick = onDismiss) { Text(stringResource(R.string.cancel)) } },
     )
 }

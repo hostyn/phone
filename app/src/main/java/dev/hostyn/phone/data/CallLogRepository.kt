@@ -1,5 +1,11 @@
 package dev.hostyn.phone.data
 
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.stateIn
+
 import android.content.Context
 import android.content.ContentResolver
 import android.database.ContentObserver
@@ -40,6 +46,13 @@ class CallLogRepository(private val context: Context) {
 
     fun observe(missedOnly: Boolean = false): Flow<List<RecentCall>> =
         changes().map { query(missedOnly) }.flowOn(Dispatchers.IO)
+
+    private val cacheScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+    private val all = observe(false).stateIn(cacheScope, SharingStarted.WhileSubscribed(60_000), null)
+    private val missed = observe(true).stateIn(cacheScope, SharingStarted.WhileSubscribed(60_000), null)
+
+    /** Recent calls, kept for a while after Recents leaves the screen so coming back shows them at once. */
+    fun recents(missedOnly: Boolean): StateFlow<List<RecentCall>?> = if (missedOnly) missed else all
 
     /** Every call with any of these numbers, newest first. */
     fun observeHistory(numbers: List<String>): Flow<List<CallEntry>> =

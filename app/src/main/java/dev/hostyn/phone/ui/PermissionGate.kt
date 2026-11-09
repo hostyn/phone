@@ -1,5 +1,8 @@
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
+
 package dev.hostyn.phone.ui
 
+import androidx.compose.material3.ButtonDefaults
 import dev.hostyn.phone.R
 import androidx.compose.ui.res.stringResource
 import android.Manifest
@@ -100,9 +103,9 @@ fun PermissionGate(content: @Composable () -> Unit) {
                 textAlign = TextAlign.Center,
             )
             Spacer(Modifier.height(32.dp))
-            Button(onClick = { launcher.launch(RequestedPerms) }) { Text(stringResource(R.string.allow_access)) }
+            Button(shapes = ButtonDefaults.shapes(), onClick = { launcher.launch(RequestedPerms) }) { Text(stringResource(R.string.allow_access)) }
             if (denials >= 2) {
-                TextButton(onClick = {
+                TextButton(shapes = ButtonDefaults.shapes(), onClick = {
                     context.startActivity(
                         Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.fromParts("package", context.packageName, null))
                     )

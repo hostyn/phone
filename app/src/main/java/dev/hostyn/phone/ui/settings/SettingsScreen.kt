@@ -1,4 +1,18 @@
+@file:OptIn(ExperimentalMaterial3ExpressiveApi::class)
+
 package dev.hostyn.phone.ui.settings
+
+import androidx.compose.material.icons.rounded.Save
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.IconButtonDefaults
+import androidx.compose.material3.LargeFlexibleTopAppBar
+import androidx.compose.material3.SegmentedListItem
+import androidx.compose.ui.graphics.Color
+import dev.hostyn.phone.ui.components.ListHeader
+import dev.hostyn.phone.ui.components.SegmentedGroup
+import dev.hostyn.phone.ui.components.SegmentedGroupScope
+import dev.hostyn.phone.ui.components.segmentedColors
 
 import android.content.Context
 import android.content.Intent
@@ -90,7 +104,7 @@ import dev.hostyn.phone.ui.components.isDefaultDialer
 import dev.hostyn.phone.ui.components.rememberOnResume
 import kotlinx.coroutines.launch
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun SettingsScreen(
     settings: AppSettings,
@@ -153,10 +167,10 @@ fun SettingsScreen(
         modifier = Modifier.nestedScroll(scroll.nestedScrollConnection),
         containerColor = MaterialTheme.colorScheme.surface,
         topBar = {
-            LargeTopAppBar(
+            LargeFlexibleTopAppBar(
                 title = { Text(stringResource(R.string.settings)) },
                 navigationIcon = {
-                    IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Rounded.ArrowBack, stringResource(R.string.back)) }
+                    IconButton(onClick = onBack, shapes = IconButtonDefaults.shapes()) { Icon(Icons.AutoMirrored.Rounded.ArrowBack, stringResource(R.string.back)) }
                 },
                 scrollBehavior = scroll,
                 colors = TopAppBarDefaults.largeTopAppBarColors(containerColor = MaterialTheme.colorScheme.surface),
@@ -170,7 +184,7 @@ fun SettingsScreen(
             // --- Backup ---
             item {
                 Section(stringResource(R.string.backup)) {
-                    SwitchRow(
+                    toggle(
                         icon = Icons.Rounded.Backup,
                         title = stringResource(R.string.auto_backup),
                         summary = stringResource(R.string.auto_backup_summary),
@@ -186,14 +200,14 @@ fun SettingsScreen(
                     )
                     if (settings.backupEnabled && settings.backupFolder != null) {
                         val folderName = remember(settings.backupFolder) { ContactsBackup.folderName(context, settings.backupFolder) }
-                        SettingRow(
+                        setting(
                             icon = Icons.Rounded.Folder,
                             title = stringResource(R.string.backup_folder),
                             summary = folderName ?: stringResource(R.string.backup_folder_missing),
                             summaryIsError = folderName == null,
                             onClick = { folderPicker.launch(settings.backupFolder?.let(Uri::parse)) },
                         )
-                        SettingRow(
+                        setting(
                             icon = Icons.Rounded.Inventory2,
                             title = stringResource(R.string.backup_keep),
                             summary = keepLabel(context, settings.backupKeep),
@@ -203,20 +217,16 @@ fun SettingsScreen(
                                 }
                             },
                         )
-                        BackupStatusRow(settings.backupStatus)
-                        Row(Modifier.fillMaxWidth().padding(start = 64.dp, end = 16.dp, top = 4.dp, bottom = 8.dp)) {
-                            FilledTonalButton(onClick = ::backupNow, enabled = !backingUp) {
-                                Text(stringResource(R.string.backup_now))
-                            }
-                        }
-                        Text(
-                            stringResource(R.string.backup_restore_hint),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.padding(start = 64.dp, end = 24.dp, bottom = 12.dp),
+                        backupStatus(settings.backupStatus)
+                        setting(
+                            icon = Icons.Rounded.Save,
+                            title = stringResource(R.string.backup_now),
+                            summary = stringResource(R.string.backup_restore_hint),
+                            enabled = !backingUp,
+                            onClick = ::backupNow,
                         )
                     } else {
-                        SettingRow(
+                        setting(
                             icon = Icons.Rounded.Folder,
                             title = stringResource(R.string.backup_folder),
                             summary = stringResource(R.string.backup_folder_none),
@@ -229,7 +239,7 @@ fun SettingsScreen(
             // --- Contacts ---
             item {
                 Section(stringResource(R.string.contacts_settings)) {
-                    SettingRow(
+                    setting(
                         icon = Icons.AutoMirrored.Rounded.Sort,
                         title = stringResource(R.string.sort_by),
                         summary = stringResource(sortLabel(settings.sortOrder)),
@@ -237,7 +247,7 @@ fun SettingsScreen(
                             choice = choiceOf(R.string.sort_by, NameOrder.entries, settings.sortOrder, { context.getString(sortLabel(it)) }, settings::updateSortOrder)
                         },
                     )
-                    SettingRow(
+                    setting(
                         icon = Icons.Rounded.Badge,
                         title = stringResource(R.string.name_format),
                         summary = stringResource(formatLabel(settings.nameFormat)),
@@ -245,12 +255,12 @@ fun SettingsScreen(
                             choice = choiceOf(R.string.name_format, NameOrder.entries, settings.nameFormat, { context.getString(formatLabel(it)) }, settings::updateNameFormat)
                         },
                     )
-                    SettingRow(
+                    setting(
                         icon = Icons.Rounded.Download,
                         title = stringResource(R.string.import_contacts),
                         onClick = { importPicker.launch(arrayOf("text/x-vcard", "text/vcard", "text/directory", "application/octet-stream")) },
                     )
-                    SettingRow(
+                    setting(
                         icon = Icons.Rounded.Upload,
                         title = stringResource(R.string.export_contacts),
                         onClick = { exportPicker.launch("contacts.vcf") },
@@ -261,33 +271,33 @@ fun SettingsScreen(
             // --- Calls ---
             item {
                 Section(stringResource(R.string.calls_settings)) {
-                    SwitchRow(
+                    toggle(
                         icon = Icons.Rounded.VolumeUp,
                         title = stringResource(R.string.dialpad_tones),
                         checked = settings.dialpadTones,
                         onChange = settings::updateDialpadTones,
                     )
-                    SwitchRow(
+                    toggle(
                         icon = Icons.Rounded.Vibration,
                         title = stringResource(R.string.dialpad_vibration),
                         checked = settings.dialpadVibration,
                         onChange = settings::updateDialpadVibration,
                     )
                     if (isDialer) {
-                        SettingRow(
+                        setting(
                             icon = Icons.Rounded.Block,
                             title = stringResource(R.string.blocked_numbers),
                             summary = stringResource(R.string.blocked_numbers_summary),
                             onClick = onBlockedNumbers,
                         )
                     }
-                    SettingRow(
+                    setting(
                         icon = Icons.Rounded.Voicemail,
                         title = stringResource(R.string.voicemail),
                         summary = stringResource(R.string.voicemail_settings_summary),
                         onClick = { open(Intent(TelephonyManager.ACTION_CONFIGURE_VOICEMAIL)) },
                     )
-                    SettingRow(
+                    setting(
                         icon = Icons.Rounded.SimCard,
                         title = stringResource(R.string.calling_accounts),
                         summary = stringResource(R.string.calling_accounts_summary),
@@ -301,28 +311,19 @@ fun SettingsScreen(
                 val apps = rememberInstalledMessagingApps()
                 Section(stringResource(R.string.chat_buttons)) {
                     if (apps.isEmpty()) {
-                        SettingRow(
+                        setting(
                             icon = Icons.AutoMirrored.Rounded.Chat,
                             title = stringResource(R.string.chat_buttons_none),
                             summary = stringResource(R.string.chat_buttons_none_summary),
                         )
                     } else {
                         apps.forEach { app ->
-                            val checked = settings.showsMessagingApp(app.installed.app)
-                            val onChange = { shown: Boolean -> settings.updateMessagingApp(app.installed.app, shown) }
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clickable { onChange(!checked) }
-                                    .padding(horizontal = 20.dp, vertical = 14.dp),
-                            ) {
-                                Image(app.icon, null, modifier = Modifier.size(24.dp))
-                                Spacer(Modifier.width(20.dp))
-                                Text(app.label, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
-                                Spacer(Modifier.width(12.dp))
-                                Switch(checked = checked, onCheckedChange = onChange)
-                            }
+                            toggle(
+                                icon = { Image(app.icon, null, modifier = Modifier.size(24.dp)) },
+                                title = app.label,
+                                checked = settings.showsMessagingApp(app.installed.app),
+                                onChange = { shown -> settings.updateMessagingApp(app.installed.app, shown) },
+                            )
                         }
                     }
                 }
@@ -331,7 +332,7 @@ fun SettingsScreen(
             // --- Appearance ---
             item {
                 Section(stringResource(R.string.appearance)) {
-                    SettingRow(
+                    setting(
                         icon = Icons.Rounded.DarkMode,
                         title = stringResource(R.string.theme),
                         summary = stringResource(themeLabel(settings.theme)),
@@ -340,7 +341,7 @@ fun SettingsScreen(
                         },
                     )
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                        SwitchRow(
+                        toggle(
                             icon = Icons.Rounded.Palette,
                             title = stringResource(R.string.dynamic_color),
                             summary = stringResource(R.string.dynamic_color_summary),
@@ -357,7 +358,7 @@ fun SettingsScreen(
                     val version = remember {
                         try { context.packageManager.getPackageInfo(context.packageName, 0).versionName } catch (_: Exception) { null }
                     }
-                    SettingRow(icon = Icons.Rounded.Info, title = stringResource(R.string.version), summary = version.orEmpty())
+                    setting(icon = Icons.Rounded.Info, title = stringResource(R.string.version), summary = version.orEmpty())
                 }
             }
         }
@@ -393,7 +394,7 @@ private fun backupErrorText(code: String) = when (code) {
 }
 
 @Composable
-private fun BackupStatusRow(status: BackupStatus) {
+private fun SegmentedGroupScope.backupStatus(status: BackupStatus) {
     val context = LocalContext.current
     val summary = when {
         status.error != null -> stringResource(backupErrorText(status.error))
@@ -404,7 +405,7 @@ private fun BackupStatusRow(status: BackupStatus) {
             status.file,
         ).joinToString(" · ")
     }
-    SettingRow(
+    setting(
         icon = Icons.Rounded.History,
         title = stringResource(R.string.backup_last),
         summary = summary,
@@ -432,7 +433,7 @@ private fun ChoiceDialog(choice: Choice, onDismiss: () -> Unit) {
                         verticalAlignment = Alignment.CenterVertically,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clip(RoundedCornerShape(12.dp))
+                            .clip(MaterialTheme.shapes.medium)
                             .selectable(selected = i == choice.selected, role = Role.RadioButton) {
                                 choice.onSelect(i)
                                 onDismiss()
@@ -446,65 +447,69 @@ private fun ChoiceDialog(choice: Choice, onDismiss: () -> Unit) {
                 }
             }
         },
-        confirmButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) } },
+        confirmButton = { TextButton(onClick = onDismiss, shapes = ButtonDefaults.shapes()) { Text(stringResource(R.string.cancel)) } },
     )
 }
 
+/** A titled M3 segmented list of settings. */
 @Composable
-private fun Section(title: String, content: @Composable () -> Unit) {
-    Text(
-        title,
-        style = MaterialTheme.typography.titleSmall,
-        color = MaterialTheme.colorScheme.primary,
-        modifier = Modifier.padding(start = 76.dp, top = 24.dp, bottom = 4.dp),
-    )
-    Surface(
-        shape = RoundedCornerShape(28.dp),
-        color = MaterialTheme.colorScheme.surfaceContainer,
-        modifier = Modifier.padding(horizontal = 12.dp).fillMaxWidth(),
-    ) {
-        Column(Modifier.padding(vertical = 8.dp)) { content() }
-    }
+private fun Section(title: String, content: @Composable SegmentedGroupScope.() -> Unit) {
+    ListHeader(title, Modifier.padding(top = 8.dp))
+    SegmentedGroup(content = content)
 }
 
-@Composable
-private fun SettingRow(
+/** A setting: tap to change it, or plain information without [onClick]. */
+private fun SegmentedGroupScope.setting(
     icon: ImageVector,
     title: String,
     summary: String? = null,
     summaryIsError: Boolean = false,
+    enabled: Boolean = true,
     onClick: (() -> Unit)? = null,
-    trailing: (@Composable () -> Unit)? = null,
-) {
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier
-            .fillMaxWidth()
-            .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
-            .padding(horizontal = 20.dp, vertical = 14.dp),
-    ) {
-        Icon(icon, null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(24.dp))
-        Spacer(Modifier.width(20.dp))
-        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-            Text(title, style = MaterialTheme.typography.bodyLarge)
-            if (!summary.isNullOrEmpty()) {
-                Text(
-                    summary,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = if (summaryIsError) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
+) = item { shapes ->
+    val leading: @Composable () -> Unit = { Icon(icon, null) }
+    val supporting: (@Composable () -> Unit)? = summary?.takeIf { it.isNotEmpty() }?.let {
+        {
+            Text(it, color = if (summaryIsError) MaterialTheme.colorScheme.error else Color.Unspecified)
         }
-        if (trailing != null) {
-            Spacer(Modifier.width(12.dp))
-            trailing()
-        }
+    }
+    if (onClick != null) {
+        SegmentedListItem(
+            onClick = onClick,
+            shapes = shapes,
+            enabled = enabled,
+            colors = segmentedColors(),
+            leadingContent = leading,
+            supportingContent = supporting,
+        ) { Text(title) }
+    } else {
+        SegmentedListItem(
+            shapes = shapes,
+            colors = segmentedColors(),
+            leadingContent = leading,
+            supportingContent = supporting,
+        ) { Text(title) }
     }
 }
 
-@Composable
-private fun SwitchRow(icon: ImageVector, title: String, summary: String? = null, checked: Boolean, onChange: (Boolean) -> Unit) {
-    SettingRow(icon = icon, title = title, summary = summary, onClick = { onChange(!checked) }) {
-        Switch(checked = checked, onCheckedChange = onChange)
-    }
+/** An on/off setting: the whole item toggles the switch. */
+private fun SegmentedGroupScope.toggle(icon: ImageVector, title: String, summary: String? = null, checked: Boolean, onChange: (Boolean) -> Unit) =
+    toggle({ Icon(icon, null) }, title, summary, checked, onChange)
+
+private fun SegmentedGroupScope.toggle(
+    icon: @Composable () -> Unit,
+    title: String,
+    summary: String? = null,
+    checked: Boolean,
+    onChange: (Boolean) -> Unit,
+) = item { shapes ->
+    SegmentedListItem(
+        checked = checked,
+        onCheckedChange = onChange,
+        shapes = shapes,
+        colors = segmentedColors(),
+        leadingContent = icon,
+        supportingContent = summary?.let { { Text(it) } },
+        trailingContent = { Switch(checked = checked, onCheckedChange = null) },
+    ) { Text(title) }
 }

@@ -1,5 +1,9 @@
 package dev.hostyn.phone.ui.components
 
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.SegmentedListItem
+
 import android.content.Context
 import android.provider.CallLog.Calls
 import android.text.format.DateFormat
@@ -90,7 +94,8 @@ fun formatDuration(context: Context, seconds: Long): String = when {
 
 private const val Collapsed = 5
 
-/** Card with the calls to/from a contact or number. Shows nothing if there are none. */
+/** Segmented list with the calls to/from a contact or number. Shows nothing if there are none. */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun CallHistoryCard(entries: List<CallEntry>, modifier: Modifier = Modifier) {
     if (entries.isEmpty()) return
@@ -99,45 +104,38 @@ fun CallHistoryCard(entries: List<CallEntry>, modifier: Modifier = Modifier) {
     var expanded by rememberSaveable { mutableStateOf(false) }
     val shown = if (expanded) entries else entries.take(Collapsed)
 
-    Surface(
-        shape = RoundedCornerShape(28.dp),
-        color = colors.surfaceContainer,
-        modifier = modifier.padding(horizontal = 16.dp).fillMaxWidth(),
-    ) {
-        Column(Modifier.padding(vertical = 8.dp).animateContentSize()) {
-            Text(
-                stringResource(R.string.call_history),
-                style = MaterialTheme.typography.titleSmall,
-                color = colors.onSurfaceVariant,
-                modifier = Modifier.padding(start = 20.dp, top = 12.dp, bottom = 4.dp),
-            )
+    Column(modifier.fillMaxWidth().animateContentSize(MaterialTheme.motionScheme.defaultSpatialSpec())) {
+        ListHeader(stringResource(R.string.call_history))
+        SegmentedGroup {
             shown.forEach { e ->
-                val (icon, tint) = callTypeIcon(e.type, colors)
-                val answered = e.type == Calls.INCOMING_TYPE || e.type == Calls.OUTGOING_TYPE
-                val details = listOfNotNull(
-                    formatCallTime(context, e.date),
-                    e.duration.takeIf { answered && it > 0 }?.let { formatDuration(context, it) },
-                ).joinToString(" · ")
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 10.dp),
-                ) {
-                    Icon(icon, null, tint = tint)
-                    Spacer(Modifier.width(20.dp))
-                    Column {
+                item { shapes ->
+                    val (icon, tint) = callTypeIcon(e.type, colors)
+                    val answered = e.type == Calls.INCOMING_TYPE || e.type == Calls.OUTGOING_TYPE
+                    val details = listOfNotNull(
+                        formatCallTime(context, e.date),
+                        e.duration.takeIf { answered && it > 0 }?.let { formatDuration(context, it) },
+                    ).joinToString(" · ")
+                    SegmentedListItem(
+                        shapes = shapes,
+                        colors = segmentedColors(),
+                        leadingContent = { Icon(icon, null, tint = tint) },
+                        supportingContent = { Text(details) },
+                    ) {
                         Text(
                             stringResource(callTypeLabel(e.type)),
-                            style = MaterialTheme.typography.bodyLarge,
                             color = if (e.type == Calls.MISSED_TYPE) colors.error else colors.onSurface,
                         )
-                        Text(details, style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant)
                     }
                 }
             }
-            if (entries.size > Collapsed) {
-                TextButton(onClick = { expanded = !expanded }, modifier = Modifier.padding(start = 8.dp)) {
-                    Text(stringResource(if (expanded) R.string.show_less else R.string.show_more))
-                }
+        }
+        if (entries.size > Collapsed) {
+            TextButton(
+                onClick = { expanded = !expanded },
+                shapes = ButtonDefaults.shapes(),
+                modifier = Modifier.padding(start = 20.dp, top = 4.dp),
+            ) {
+                Text(stringResource(if (expanded) R.string.show_less else R.string.show_more))
             }
         }
     }

@@ -1,4 +1,10 @@
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
+
 package dev.hostyn.phone.ui.edit
+
+import androidx.compose.material3.IconButtonDefaults
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.LoadingIndicator
 
 import android.graphics.BitmapFactory
 import android.provider.ContactsContract.CommonDataKinds.Email
@@ -295,10 +301,11 @@ fun EditScreen(
                 title = { Text(if (vm.isNew) stringResource(R.string.new_contact) else stringResource(R.string.edit_contact)) },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.surface),
                 navigationIcon = {
-                    IconButton(onClick = requestClose) { Icon(Icons.Rounded.Close, stringResource(R.string.close)) }
+                    IconButton(shapes = IconButtonDefaults.shapes(), onClick = requestClose) { Icon(Icons.Rounded.Close, stringResource(R.string.close)) }
                 },
                 actions = {
                     Button(
+                        shapes = ButtonDefaults.shapes(),
                         onClick = ::save,
                         enabled = vm.canSave,
                         modifier = Modifier.padding(end = 8.dp),
@@ -308,7 +315,7 @@ fun EditScreen(
         },
     ) { padding ->
         if (vm.loading) {
-            Box(Modifier.fillMaxSize().padding(padding), Alignment.Center) { CircularProgressIndicator() }
+            Box(Modifier.fillMaxSize().padding(padding), Alignment.Center) { LoadingIndicator() }
             return@Scaffold
         }
         val d = vm.draft
@@ -342,7 +349,7 @@ fun EditScreen(
                     TextInput(n.phoneticMiddle, { v -> name { it.copy(phoneticMiddle = v) } }, stringResource(R.string.phonetic_middle_name), words = true)
                     TextInput(n.phoneticFamily, { v -> name { it.copy(phoneticFamily = v) } }, stringResource(R.string.phonetic_last_name), words = true)
                 }
-                TextButton(onClick = { vm.showNameExtras = !vm.showNameExtras }) {
+                TextButton(shapes = ButtonDefaults.shapes(), onClick = { vm.showNameExtras = !vm.showNameExtras }) {
                     Icon(if (vm.showNameExtras) Icons.Rounded.ExpandLess else Icons.Rounded.ExpandMore, null, Modifier.size(18.dp))
                     Spacer(Modifier.width(8.dp))
                     Text(stringResource(if (vm.showNameExtras) R.string.fewer_name_fields else R.string.more_name_fields))
@@ -475,8 +482,8 @@ fun EditScreen(
             onDismissRequest = { confirmDiscard = false },
             title = { Text(stringResource(R.string.discard_title)) },
             text = { Text(stringResource(R.string.discard_body)) },
-            confirmButton = { TextButton(onClick = { confirmDiscard = false; onClose() }) { Text(stringResource(R.string.discard)) } },
-            dismissButton = { TextButton(onClick = { confirmDiscard = false }) { Text(stringResource(R.string.keep_editing)) } },
+            confirmButton = { TextButton(shapes = ButtonDefaults.shapes(), onClick = { confirmDiscard = false; onClose() }) { Text(stringResource(R.string.discard)) } },
+            dismissButton = { TextButton(shapes = ButtonDefaults.shapes(), onClick = { confirmDiscard = false }) { Text(stringResource(R.string.keep_editing)) } },
         )
     }
 }
@@ -548,7 +555,7 @@ private fun AccountChooser(vm: EditViewModel) {
     Box(Modifier.fillMaxWidth().padding(bottom = 8.dp)) {
         Surface(
             onClick = { menu = true },
-            shape = RoundedCornerShape(16.dp),
+            shape = MaterialTheme.shapes.large,
             color = MaterialTheme.colorScheme.surfaceContainerHigh,
             modifier = Modifier.fillMaxWidth(),
         ) {
@@ -630,7 +637,7 @@ private fun TextInput(
 
 @Composable
 private fun RemoveButton(onRemove: () -> Unit) {
-    IconButton(onClick = onRemove) {
+    IconButton(shapes = IconButtonDefaults.shapes(), onClick = onRemove) {
         Icon(Icons.Rounded.RemoveCircleOutline, stringResource(R.string.remove), tint = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
@@ -650,7 +657,7 @@ private fun TypeMenu(
     var menu by remember { mutableStateOf(false) }
     var askCustom by remember { mutableStateOf(false) }
     Box {
-        TextButton(onClick = { menu = true }, shape = RoundedCornerShape(12.dp)) {
+        TextButton(onClick = { menu = true }, shapes = ButtonDefaults.shapes()) {
             Text(current, maxLines = 1, overflow = TextOverflow.Ellipsis)
             Spacer(Modifier.width(4.dp))
             Icon(Icons.Rounded.ExpandMore, null, modifier = Modifier.size(18.dp))
@@ -685,8 +692,8 @@ private fun TextDialog(title: String, initial: String, onDismiss: () -> Unit, on
                 modifier = Modifier.fillMaxWidth(),
             )
         },
-        confirmButton = { TextButton(onClick = { onConfirm(text) }, enabled = text.isNotBlank()) { Text(stringResource(R.string.ok)) } },
-        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) } },
+        confirmButton = { TextButton(shapes = ButtonDefaults.shapes(), onClick = { onConfirm(text) }, enabled = text.isNotBlank()) { Text(stringResource(R.string.ok)) } },
+        dismissButton = { TextButton(shapes = ButtonDefaults.shapes(), onClick = onDismiss) { Text(stringResource(R.string.cancel)) } },
     )
 }
 
@@ -788,6 +795,7 @@ private fun EventEditor(field: ContactField, onChange: (ContactField) -> Unit, o
             onDismissRequest = { picking = false },
             confirmButton = {
                 TextButton(
+                    shapes = ButtonDefaults.shapes(),
                     enabled = state.selectedDateMillis != null,
                     onClick = {
                         picking = false
@@ -795,7 +803,7 @@ private fun EventEditor(field: ContactField, onChange: (ContactField) -> Unit, o
                     },
                 ) { Text(stringResource(R.string.ok)) }
             },
-            dismissButton = { TextButton(onClick = { picking = false }) { Text(stringResource(R.string.cancel)) } },
+            dismissButton = { TextButton(shapes = ButtonDefaults.shapes(), onClick = { picking = false }) { Text(stringResource(R.string.cancel)) } },
         ) {
             Column {
                 DatePicker(state = state, showModeToggle = true, modifier = Modifier.weight(1f, fill = false))
@@ -874,7 +882,7 @@ private fun LabelsEditor(vm: EditViewModel) {
 
 @Composable
 private fun AddButton(text: String, onClick: () -> Unit) {
-    TextButton(onClick = onClick) {
+    TextButton(shapes = ButtonDefaults.shapes(), onClick = onClick) {
         Icon(Icons.Rounded.Add, null, modifier = Modifier.size(18.dp))
         Spacer(Modifier.width(8.dp))
         Text(text)
@@ -887,7 +895,7 @@ private fun AddFieldsButton(hidden: List<Section>, onAdd: (Section) -> Unit) {
     var menu by remember { mutableStateOf(false) }
     Box(Modifier.fillMaxWidth().padding(top = 16.dp), Alignment.Center) {
         Box {
-            Button(onClick = { menu = true }) {
+            Button(shapes = ButtonDefaults.shapes(), onClick = { menu = true }) {
                 Icon(Icons.Rounded.Add, null, Modifier.size(18.dp))
                 Spacer(Modifier.width(8.dp))
                 Text(stringResource(R.string.add_field))

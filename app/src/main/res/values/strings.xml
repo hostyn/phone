@@ -12,6 +12,7 @@
     <string name="default_dialer_body">Set it as your default phone app to make and receive calls and see your recents.</string>
     <string name="set_as_default">Set as default</string>
     <string name="copied">Copied</string>
+    <string name="copy">Copy</string>
     <string name="back">Back</string>
     <string name="add_favorite">Add to favorites</string>
     <string name="remove_favorite">Remove from favorites</string>

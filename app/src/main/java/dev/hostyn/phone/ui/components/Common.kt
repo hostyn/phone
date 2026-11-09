@@ -1,4 +1,10 @@
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
+
 package dev.hostyn.phone.ui.components
+
+import androidx.compose.material3.IconButtonDefaults
+import androidx.compose.material3.MaterialShapes
+import androidx.compose.material3.toShape
 
 import dev.hostyn.phone.R
 import androidx.compose.ui.res.stringResource
@@ -48,18 +54,6 @@ import java.text.Normalizer
 fun String.foldAccents(): String =
     Normalizer.normalize(this, Normalizer.Form.NFD).replace(Regex("\\p{Mn}+"), "").lowercase()
 
-/** Shape of an item inside a group: large corners at the ends, small ones in between. */
-fun segmentShape(first: Boolean, last: Boolean): Shape {
-    val big = 24.dp
-    val small = 6.dp
-    return RoundedCornerShape(
-        topStart = if (first) big else small,
-        topEnd = if (first) big else small,
-        bottomStart = if (last) big else small,
-        bottomEnd = if (last) big else small,
-    )
-}
-
 /** Value recomputed every time the screen comes back to the foreground. */
 @Composable
 fun <T> rememberOnResume(compute: () -> T): T {
@@ -104,7 +98,7 @@ fun SearchPill(
                 )
             }
             AnimatedVisibility(query.isNotEmpty(), enter = fadeIn(), exit = fadeOut()) {
-                IconButton(onClick = { onQuery(""); focus.clearFocus() }) {
+                IconButton(onClick = { onQuery(""); focus.clearFocus() }, shapes = IconButtonDefaults.shapes()) {
                     Icon(Icons.Rounded.Close, stringResource(R.string.clear_search))
                 }
             }
@@ -126,13 +120,14 @@ fun EmptyState(
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Surface(shape = CircleShape, color = MaterialTheme.colorScheme.secondaryContainer, modifier = Modifier.size(88.dp)) {
+        // An expressive shape draws the eye to the empty state's icon.
+        Surface(shape = MaterialShapes.Cookie9Sided.toShape(), color = MaterialTheme.colorScheme.secondaryContainer, modifier = Modifier.size(104.dp)) {
             Box(contentAlignment = Alignment.Center) {
                 Icon(icon, null, tint = MaterialTheme.colorScheme.onSecondaryContainer, modifier = Modifier.size(40.dp))
             }
         }
         Spacer(Modifier.height(20.dp))
-        Text(title, style = MaterialTheme.typography.titleLarge, textAlign = TextAlign.Center)
+        Text(title, style = MaterialTheme.typography.titleLargeEmphasized, textAlign = TextAlign.Center)
         Spacer(Modifier.height(8.dp))
         Text(
             body,

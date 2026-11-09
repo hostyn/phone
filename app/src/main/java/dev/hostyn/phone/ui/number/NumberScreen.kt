@@ -1,4 +1,15 @@
+@file:OptIn(ExperimentalMaterial3ExpressiveApi::class)
+
 package dev.hostyn.phone.ui.number
+
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.IconButtonDefaults
+import dev.hostyn.phone.ui.components.ActionGroup
+import dev.hostyn.phone.ui.components.ActionSize
+import dev.hostyn.phone.ui.components.action
+import dev.hostyn.phone.ui.detail.chatAction
+import dev.hostyn.phone.ui.theme.containerTransform
 
 import android.widget.Toast
 import androidx.compose.foundation.layout.Arrangement
@@ -65,9 +76,7 @@ import dev.hostyn.phone.ui.components.isDefaultDialer
 import dev.hostyn.phone.ui.components.rememberCallLauncher
 import dev.hostyn.phone.ui.components.rememberOnResume
 import dev.hostyn.phone.ui.components.sms
-import dev.hostyn.phone.ui.detail.QuickAction
 import dev.hostyn.phone.ui.components.rememberMessagingButtons
-import dev.hostyn.phone.ui.detail.QuickActionRow
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.draw.clip
 import androidx.compose.material3.SnackbarHostState
@@ -80,7 +89,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 /** Details of a number that isn't a contact: actions and its call history. */
-@OptIn(ExperimentalMaterial3Api::class, androidx.compose.foundation.ExperimentalFoundationApi::class)
+@OptIn(ExperimentalMaterial3Api::class, androidx.compose.foundation.ExperimentalFoundationApi::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun NumberScreen(
     number: String,
@@ -89,6 +98,7 @@ fun NumberScreen(
     onBack: () -> Unit,
     onOpenContact: (Long) -> Unit,
     onAddContact: (String) -> Unit,
+    transformKey: String? = null,
 ) {
     val context = LocalContext.current
     val clipboard = LocalClipboardManager.current
@@ -132,7 +142,12 @@ fun NumberScreen(
         }
     }
 
+    val callLabel = stringResource(R.string.call)
+    val messageLabel = stringResource(R.string.message)
+    val addLabel = stringResource(R.string.add)
     Scaffold(
+        // Grows out of the row it was opened from (container transform).
+        modifier = Modifier.containerTransform(transformKey),
         containerColor = MaterialTheme.colorScheme.surface,
         snackbarHost = { SnackbarHost(snackbar) },
         topBar = {
@@ -140,11 +155,11 @@ fun NumberScreen(
                 title = {},
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.surface),
                 navigationIcon = {
-                    IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Rounded.ArrowBack, stringResource(R.string.back)) }
+                    IconButton(onClick = onBack, shapes = IconButtonDefaults.shapes()) { Icon(Icons.AutoMirrored.Rounded.ArrowBack, stringResource(R.string.back)) }
                 },
                 actions = {
                     Box {
-                        IconButton(onClick = { menu = true }) { Icon(Icons.Rounded.MoreVert, stringResource(R.string.more_options)) }
+                        IconButton(onClick = { menu = true }, shapes = IconButtonDefaults.shapes()) { Icon(Icons.Rounded.MoreVert, stringResource(R.string.more_options)) }
                         DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
                             DropdownMenuItem(
                                 text = { Text(stringResource(R.string.copy_number)) },
@@ -186,11 +201,11 @@ fun NumberScreen(
             // Long-press the number to copy it, like the numbers of a contact.
             Text(
                 formatted,
-                style = MaterialTheme.typography.headlineMedium,
+                style = MaterialTheme.typography.headlineMediumEmphasized,
                 textAlign = TextAlign.Center,
                 modifier = Modifier
                     .padding(horizontal = 24.dp)
-                    .clip(RoundedCornerShape(12.dp))
+                    .clip(MaterialTheme.shapes.medium)
                     .combinedClickable(onClickLabel = null, onLongClickLabel = copyLabel, onClick = {}, onLongClick = {
                         view.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
                         copy()
@@ -206,13 +221,13 @@ fun NumberScreen(
                 }
             }
             Spacer(Modifier.height(24.dp))
-            QuickActionRow(3 + messagingButtons.size) { item ->
-                QuickAction(Icons.Rounded.Call, stringResource(R.string.call), true, item) { placeCall(number) }
-                QuickAction(Icons.AutoMirrored.Rounded.Message, stringResource(R.string.message), true, item) { context.sms(number) }
-                messagingButtons.forEach { app -> QuickAction(app, number, item) }
-                QuickAction(Icons.Rounded.PersonAdd, stringResource(R.string.add), true, item) { onAddContact(number) }
+            ActionGroup(Modifier.padding(horizontal = 16.dp)) {
+                action(Icons.Rounded.Call, callLabel, ActionSize.Medium) { placeCall(number) }
+                action(Icons.AutoMirrored.Rounded.Message, messageLabel, ActionSize.Medium) { context.sms(number) }
+                messagingButtons.forEach { app -> chatAction(app, number, context) }
+                action(Icons.Rounded.PersonAdd, addLabel, ActionSize.Medium) { onAddContact(number) }
             }
-            Spacer(Modifier.height(28.dp))
+            Spacer(Modifier.height(16.dp))
             CallHistoryCard(history.orEmpty())
         }
     }
@@ -233,7 +248,7 @@ fun NumberScreen(
             title = { Text(stringResource(R.string.delete_number_history)) },
             text = { Text(stringResource(R.string.delete_number_history_body, formatted)) },
             confirmButton = {
-                TextButton(onClick = {
+                TextButton(shapes = ButtonDefaults.shapes(), onClick = {
                     confirmDelete = false
                     val ids = history.orEmpty().map { it.id }
                     scope.launch {
@@ -242,7 +257,7 @@ fun NumberScreen(
                     }
                 }) { Text(stringResource(R.string.delete)) }
             },
-            dismissButton = { TextButton(onClick = { confirmDelete = false }) { Text(stringResource(R.string.cancel)) } },
+            dismissButton = { TextButton(onClick = { confirmDelete = false }, shapes = ButtonDefaults.shapes()) { Text(stringResource(R.string.cancel)) } },
         )
     }
 }

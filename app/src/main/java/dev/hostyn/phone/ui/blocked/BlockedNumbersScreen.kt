@@ -1,5 +1,14 @@
 package dev.hostyn.phone.ui.blocked
 
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.IconButtonDefaults
+import androidx.compose.material3.LargeFlexibleTopAppBar
+import androidx.compose.material3.ListItemDefaults
+import androidx.compose.material3.MediumExtendedFloatingActionButton
+import androidx.compose.material3.SegmentedListItem
+import dev.hostyn.phone.ui.components.segmentedColors
+
 import android.widget.Toast
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -57,12 +66,11 @@ import dev.hostyn.phone.ui.components.EmptyState
 import dev.hostyn.phone.ui.components.isDefaultDialer
 import dev.hostyn.phone.ui.components.rememberDialerRoleRequest
 import dev.hostyn.phone.ui.components.rememberOnResume
-import dev.hostyn.phone.ui.components.segmentShape
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun BlockedNumbersScreen(blocked: BlockedNumbersRepository, onBack: () -> Unit) {
     val context = LocalContext.current
@@ -79,17 +87,17 @@ fun BlockedNumbersScreen(blocked: BlockedNumbersRepository, onBack: () -> Unit) 
     Scaffold(
         modifier = Modifier.nestedScroll(scroll.nestedScrollConnection),
         topBar = {
-            LargeTopAppBar(
+            LargeFlexibleTopAppBar(
                 title = { Text(stringResource(R.string.blocked_numbers)) },
                 navigationIcon = {
-                    IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Rounded.ArrowBack, stringResource(R.string.back)) }
+                    IconButton(onClick = onBack, shapes = IconButtonDefaults.shapes()) { Icon(Icons.AutoMirrored.Rounded.ArrowBack, stringResource(R.string.back)) }
                 },
                 scrollBehavior = scroll,
             )
         },
         floatingActionButton = {
             if (canBlock) {
-                ExtendedFloatingActionButton(
+                MediumExtendedFloatingActionButton(
                     onClick = { adding = true },
                     icon = { Icon(Icons.Rounded.Add, null) },
                     text = { Text(stringResource(R.string.add_number)) },
@@ -105,7 +113,7 @@ fun BlockedNumbersScreen(blocked: BlockedNumbersRepository, onBack: () -> Unit) 
                 stringResource(R.string.blocking_need_default),
                 Modifier.fillMaxSize().padding(padding),
             ) {
-                Button(onClick = requestRole) { Text(stringResource(R.string.set_default_phone_app)) }
+                Button(onClick = requestRole, shapes = ButtonDefaults.shapes()) { Text(stringResource(R.string.set_default_phone_app)) }
             }
             items == null -> Box(Modifier.fillMaxSize())
             items.isEmpty() -> EmptyState(
@@ -125,38 +133,31 @@ fun BlockedNumbersScreen(blocked: BlockedNumbersRepository, onBack: () -> Unit) 
                     val name by produceState<String?>(null, item.number) {
                         value = withContext(Dispatchers.IO) { context.contentResolver.lookupNumber(item.number)?.name }
                     }
-                    val shape = segmentShape(i == 0, i == items.lastIndex)
-                    Surface(
-                        shape = shape,
-                        color = MaterialTheme.colorScheme.surfaceContainer,
+                    val formatted = formatPhone(context, item.number)
+                    SegmentedListItem(
+                        shapes = ListItemDefaults.segmentedShapes(i, items.size),
+                        colors = segmentedColors(),
+                        leadingContent = { ContactAvatar(name.orEmpty(), null, item.number.hashCode().toLong(), size = 40.dp) },
+                        supportingContent = if (name != null) ({ Text(formatted) }) else null,
+                        trailingContent = {
+                            IconButton(
+                                onClick = {
+                                    scope.launch {
+                                        val ok = blocked.unblock(listOf(item.number))
+                                        Toast.makeText(context, if (ok) unblockedMsg else errorMsg, Toast.LENGTH_SHORT).show()
+                                    }
+                                },
+                                shapes = IconButtonDefaults.shapes(),
+                            ) {
+                                Icon(Icons.Rounded.Close, stringResource(R.string.unblock_number))
+                            }
+                        },
                         modifier = Modifier
                             .animateItem()
                             .padding(horizontal = 16.dp)
-                            .padding(bottom = 2.dp)
-                            .fillMaxWidth(),
+                            .padding(bottom = if (i == items.lastIndex) 0.dp else ListItemDefaults.SegmentedGap),
                     ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.padding(start = 16.dp, end = 8.dp, top = 10.dp, bottom = 10.dp),
-                        ) {
-                            ContactAvatar(name.orEmpty(), null, item.number.hashCode().toLong(), size = 44.dp)
-                            Spacer(Modifier.width(16.dp))
-                            Column(Modifier.weight(1f)) {
-                                val formatted = formatPhone(context, item.number)
-                                Text(name ?: formatted, style = MaterialTheme.typography.bodyLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                                if (name != null) {
-                                    Text(formatted, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                }
-                            }
-                            IconButton(onClick = {
-                                scope.launch {
-                                    val ok = blocked.unblock(listOf(item.number))
-                                    Toast.makeText(context, if (ok) unblockedMsg else errorMsg, Toast.LENGTH_SHORT).show()
-                                }
-                            }) {
-                                Icon(Icons.Rounded.Close, stringResource(R.string.unblock_number))
-                            }
-                        }
+                        Text(name ?: formatted, maxLines = 1, overflow = TextOverflow.Ellipsis)
                     }
                 }
             }
@@ -180,6 +181,7 @@ fun BlockedNumbersScreen(blocked: BlockedNumbersRepository, onBack: () -> Unit) 
             },
             confirmButton = {
                 TextButton(
+                    shapes = ButtonDefaults.shapes(),
                     enabled = number.isNotBlank(),
                     onClick = {
                         adding = false
@@ -190,7 +192,7 @@ fun BlockedNumbersScreen(blocked: BlockedNumbersRepository, onBack: () -> Unit) 
                     },
                 ) { Text(stringResource(R.string.block)) }
             },
-            dismissButton = { TextButton(onClick = { adding = false }) { Text(stringResource(R.string.cancel)) } },
+            dismissButton = { TextButton(onClick = { adding = false }, shapes = ButtonDefaults.shapes()) { Text(stringResource(R.string.cancel)) } },
         )
     }
 }

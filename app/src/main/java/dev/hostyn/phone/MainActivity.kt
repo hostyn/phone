@@ -6,12 +6,26 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.compose.animation.AnimatedContentTransitionScope.SlideDirection
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInVertically
-import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.ExperimentalSharedTransitionApi
+import androidx.compose.animation.SharedTransitionLayout
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.remember
+import androidx.compose.ui.platform.LocalDensity
+import androidx.navigation.NamedNavArgument
+import androidx.navigation.NavBackStackEntry
+import androidx.navigation.NavGraphBuilder
+import dev.hostyn.phone.ui.theme.LocalNavAnimatedScope
+import dev.hostyn.phone.ui.theme.LocalSharedTransitionScope
+import dev.hostyn.phone.ui.theme.LocalTransformOrigin
+import dev.hostyn.phone.ui.theme.TransformOrigin
+import dev.hostyn.phone.ui.theme.backwardEnter
+import dev.hostyn.phone.ui.theme.backwardExit
+import dev.hostyn.phone.ui.theme.bottomEnter
+import dev.hostyn.phone.ui.theme.bottomExit
+import dev.hostyn.phone.ui.theme.forwardEnter
+import dev.hostyn.phone.ui.theme.forwardExit
+import dev.hostyn.phone.ui.theme.transformEnter
+import dev.hostyn.phone.ui.theme.transformExit
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
@@ -78,6 +92,7 @@ class MainActivity : ComponentActivity() {
     }
 }
 
+@OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
 private fun AppNavigation(
     app: PhoneApp,
@@ -99,31 +114,55 @@ private fun AppNavigation(
         dialRequest.value = null
     }
 
+    val density = LocalDensity.current
+    val origin = remember { TransformOrigin() }
+    /** [route], plus the element it grows out of if a row just asked for a container transform. */
+    fun withOrigin(route: String): String {
+        val key = origin.take() ?: return route
+        return route + (if ('?' in route) "&" else "?") + "from=" + Uri.encode(key)
+    }
+
+    SharedTransitionLayout {
+    CompositionLocalProvider(LocalSharedTransitionScope provides this, LocalTransformOrigin provides origin) {
     NavHost(
         navController = nav,
         startDestination = "home",
         modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surface),
-        enterTransition = { slideIntoContainer(SlideDirection.Start, tween(300), initialOffset = { it / 5 }) + fadeIn(tween(300)) },
-        exitTransition = { fadeOut(tween(200)) },
-        popEnterTransition = { fadeIn(tween(300)) },
-        popExitTransition = { slideOutOfContainer(SlideDirection.End, tween(300), targetOffset = { it / 5 }) + fadeOut(tween(200)) },
+        // M3 forward and backward pattern; screens opened with a container transform only fade
+        // underneath it. The dialpad enters from the bottom edge like a sheet.
+        enterTransition = {
+            when {
+                targetState.transformKey() != null -> transformEnter()
+                targetState.isDialpad() -> bottomEnter()
+                else -> density.forwardEnter()
+            }
+        },
+        exitTransition = { if (targetState.transformKey() != null) transformExit() else density.forwardExit() },
+        popEnterTransition = { if (initialState.transformKey() != null) transformEnter() else density.backwardEnter() },
+        popExitTransition = {
+            when {
+                initialState.transformKey() != null -> transformExit()
+                initialState.isDialpad() -> bottomExit()
+                else -> density.backwardExit()
+            }
+        },
     ) {
-        composable("home") {
+        screen("home") {
             HomeScreen(
                 repo = app.repository,
                 callLog = app.callLog,
                 blocked = app.blocked,
-                onOpenContact = { nav.navigate("detail/$it") },
+                onOpenContact = { nav.navigate(withOrigin("detail/$it")) },
                 onCreateContact = { phone ->
                     nav.navigate(if (phone == null) "edit" else "edit?phone=${Uri.encode(phone)}")
                 },
-                onDialpad = { nav.navigate("dialpad") },
+                onDialpad = { nav.navigate(withOrigin("dialpad")) },
                 onSettings = { nav.navigate("settings") },
-                onOpenNumber = { nav.navigate("number/${Uri.encode(it)}") },
+                onOpenNumber = { nav.navigate(withOrigin("number/${Uri.encode(it)}")) },
                 recentsRequest = recentsRequest.intValue,
             )
         }
-        composable("number/{number}") { entry ->
+        screen("number/{number}?from={from}", listOf(fromArgument())) { entry ->
             NumberScreen(
                 number = entry.arguments?.getString("number").orEmpty(),
                 callLog = app.callLog,
@@ -133,9 +172,10 @@ private fun AppNavigation(
                     nav.navigate("detail/$id") { popUpTo("home") }
                 },
                 onAddContact = { nav.navigate("edit?phone=${Uri.encode(it)}") },
+                transformKey = entry.transformKey(),
             )
         }
-        composable("settings") {
+        screen("settings") {
             SettingsScreen(
                 settings = app.settings,
                 repo = app.repository,
@@ -143,28 +183,27 @@ private fun AppNavigation(
                 onBlockedNumbers = { nav.navigate("blocked") },
             )
         }
-        composable("blocked") {
+        screen("blocked") {
             BlockedNumbersScreen(
                 blocked = app.blocked,
                 onBack = { nav.popBackStack() },
             )
         }
-        composable(
-            "dialpad?number={number}",
-            arguments = listOf(navArgument("number") { type = NavType.StringType; defaultValue = "" }),
-            enterTransition = { slideInVertically(tween(320)) { it / 3 } + fadeIn(tween(250)) },
-            popExitTransition = { slideOutVertically(tween(250)) { it / 3 } + fadeOut(tween(200)) },
+        screen(
+            "dialpad?number={number}&from={from}",
+            listOf(navArgument("number") { type = NavType.StringType; defaultValue = "" }, fromArgument()),
         ) { entry ->
             DialerScreen(
                 repo = app.repository,
                 initialNumber = entry.arguments?.getString("number").orEmpty(),
                 onBack = { if (!nav.popBackStack()) nav.navigate("home") },
                 onAddContact = { nav.navigate("edit?phone=${Uri.encode(it)}") },
+                transformKey = entry.transformKey(),
             )
         }
-        composable(
-            "detail/{id}",
-            arguments = listOf(navArgument("id") { type = NavType.LongType }),
+        screen(
+            "detail/{id}?from={from}",
+            listOf(navArgument("id") { type = NavType.LongType }, fromArgument()),
         ) { entry ->
             val id = entry.arguments!!.getLong("id")
             DetailScreen(
@@ -174,11 +213,12 @@ private fun AppNavigation(
                 contactId = id,
                 onBack = { nav.popBackStack() },
                 onEdit = { nav.navigate("edit?id=$id") },
+                transformKey = entry.transformKey(),
             )
         }
-        composable(
+        screen(
             "edit?id={id}&phone={phone}",
-            arguments = listOf(
+            listOf(
                 navArgument("id") { type = NavType.LongType; defaultValue = -1L },
                 navArgument("phone") { type = NavType.StringType; nullable = true; defaultValue = null },
             ),
@@ -194,5 +234,25 @@ private fun AppNavigation(
                 },
             )
         }
+    }
+    }
+    }
+}
+
+private fun fromArgument() = navArgument("from") { type = NavType.StringType; nullable = true; defaultValue = null }
+
+/** The element this screen grows out of (container transform), if it was opened from one. */
+private fun NavBackStackEntry.transformKey(): String? = arguments?.getString("from")
+
+private fun NavBackStackEntry.isDialpad() = destination.route?.startsWith("dialpad") == true
+
+/** A destination whose content can take part in container transforms. */
+private fun NavGraphBuilder.screen(
+    route: String,
+    arguments: List<NamedNavArgument> = emptyList(),
+    content: @Composable (NavBackStackEntry) -> Unit,
+) {
+    composable(route, arguments) { entry ->
+        CompositionLocalProvider(LocalNavAnimatedScope provides this) { content(entry) }
     }
 }

@@ -66,6 +66,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import dev.hostyn.phone.ui.theme.callGreen
+import dev.hostyn.phone.ui.theme.containerTransform
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.IconButtonDefaults
 import dev.hostyn.phone.data.ContactSummary
@@ -138,6 +140,7 @@ fun DialerScreen(
     initialNumber: String,
     onBack: () -> Unit,
     onAddContact: (String) -> Unit,
+    transformKey: String? = null,
 ) {
     val context = LocalContext.current
     val call = rememberCallLauncher()
@@ -154,7 +157,7 @@ fun DialerScreen(
             title = { Text(stringResource(R.string.voicemail)) },
             text = { Text(stringResource(R.string.no_voicemail)) },
             confirmButton = {
-                TextButton(onClick = {
+                TextButton(shapes = ButtonDefaults.shapes(), onClick = {
                     noVoicemail = false
                     try {
                         context.startActivity(Intent(TelephonyManager.ACTION_CONFIGURE_VOICEMAIL))
@@ -163,7 +166,7 @@ fun DialerScreen(
                     }
                 }) { Text(stringResource(R.string.set_up)) }
             },
-            dismissButton = { TextButton(onClick = { noVoicemail = false }) { Text(stringResource(R.string.cancel)) } },
+            dismissButton = { TextButton(onClick = { noVoicemail = false }, shapes = ButtonDefaults.shapes()) { Text(stringResource(R.string.cancel)) } },
         )
     }
 
@@ -177,9 +180,10 @@ fun DialerScreen(
         else -> MaterialTheme.typography.displaySmall
     }
 
-    Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.surface) {
+    // Grows out of the dialpad button when opened from it (container transform).
+    Surface(Modifier.fillMaxSize().containerTransform(transformKey), color = MaterialTheme.colorScheme.surface) {
         Column(Modifier.fillMaxSize().systemBarsPadding().padding(bottom = 20.dp)) {
-            IconButton(onClick = onBack, modifier = Modifier.padding(4.dp)) {
+            IconButton(onClick = onBack, shapes = IconButtonDefaults.shapes(), modifier = Modifier.padding(4.dp)) {
                 Icon(Icons.AutoMirrored.Rounded.ArrowBack, stringResource(R.string.back))
             }
 
@@ -227,9 +231,9 @@ fun DialerScreen(
 
             Box(Modifier.fillMaxWidth().height(44.dp), contentAlignment = Alignment.Center) {
                 androidx.compose.animation.AnimatedVisibility(visible = number.isNotEmpty() && !known, enter = fadeIn(), exit = fadeOut()) {
-                    TextButton(onClick = { onAddContact(number) }) {
-                        Icon(Icons.Rounded.PersonAdd, null, modifier = Modifier.size(18.dp))
-                        Spacer(Modifier.width(8.dp))
+                    TextButton(onClick = { onAddContact(number) }, shapes = ButtonDefaults.shapes()) {
+                        Icon(Icons.Rounded.PersonAdd, null, modifier = Modifier.size(ButtonDefaults.IconSize))
+                        Spacer(Modifier.width(ButtonDefaults.IconSpacing))
                         Text(stringResource(R.string.add_to_contacts))
                     }
                 }
@@ -276,7 +280,7 @@ private fun SuggestionRow(s: Suggestion, onClick: () -> Unit) {
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(20.dp))
+            .clip(MaterialTheme.shapes.largeIncreased)
             .clickable(onClick = onClick)
             .padding(horizontal = 12.dp, vertical = 8.dp),
     ) {

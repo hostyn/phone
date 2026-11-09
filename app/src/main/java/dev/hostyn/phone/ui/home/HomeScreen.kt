@@ -1,10 +1,25 @@
+@file:OptIn(ExperimentalMaterial3ExpressiveApi::class)
+
 package dev.hostyn.phone.ui.home
 
 import androidx.annotation.StringRes
 import dev.hostyn.phone.R
 import androidx.compose.ui.res.stringResource
 import android.content.Context
-import androidx.compose.animation.Crossfade
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.layout.size
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.FloatingActionButtonDefaults
+import androidx.compose.material3.IconButtonDefaults
+import androidx.compose.material3.MediumFloatingActionButton
+import androidx.compose.material3.ShortNavigationBar
+import androidx.compose.material3.ShortNavigationBarItem
+import dev.hostyn.phone.ui.theme.LocalTransformOrigin
+import dev.hostyn.phone.ui.theme.containerTransform
+import dev.hostyn.phone.ui.theme.topLevelEnter
+import dev.hostyn.phone.ui.theme.topLevelExit
 import androidx.compose.foundation.layout.Box
 import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material.icons.rounded.DeleteSweep
@@ -20,18 +35,14 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material.icons.outlined.Schedule
 import androidx.compose.material.icons.rounded.Dialpad
 import androidx.compose.material.icons.rounded.Person
 import androidx.compose.material.icons.rounded.Schedule
-import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.NavigationBar
-import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -53,6 +64,9 @@ import dev.hostyn.phone.ui.components.SearchPill
 import dev.hostyn.phone.ui.components.rememberCallLauncher
 import dev.hostyn.phone.ui.contacts.ContactsTab
 import dev.hostyn.phone.ui.recents.RecentsTab
+
+/** Shared key between the dialpad button and the dialpad screen. */
+const val DialpadTransformKey = "dialpad"
 
 private class Tab(@StringRes val label: Int, val selected: ImageVector, val unselected: ImageVector)
 
@@ -101,7 +115,7 @@ fun HomeScreen(
                 onQuery = { query = it },
                 trailing = {
                     Box {
-                        IconButton(onClick = { menu = true }) {
+                        IconButton(onClick = { menu = true }, shapes = IconButtonDefaults.shapes()) {
                             Icon(Icons.Rounded.MoreVert, stringResource(R.string.more_options))
                         }
                         DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
@@ -122,9 +136,10 @@ fun HomeScreen(
             )
         },
         bottomBar = {
-            NavigationBar {
+            // M3 Expressive flexible (short) navigation bar.
+            ShortNavigationBar {
                 Tabs.forEachIndexed { i, t ->
-                    NavigationBarItem(
+                    ShortNavigationBarItem(
                         selected = tab == i,
                         onClick = {
                             tab = i
@@ -137,17 +152,22 @@ fun HomeScreen(
             }
         },
         floatingActionButton = {
-            FloatingActionButton(
-                onClick = onDialpad,
-                shape = RoundedCornerShape(20.dp),
-                containerColor = MaterialTheme.colorScheme.primaryContainer,
-                contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+            // The dialpad grows out of this button (container transform).
+            val origin = LocalTransformOrigin.current
+            MediumFloatingActionButton(
+                onClick = { origin.key = DialpadTransformKey; onDialpad() },
+                modifier = Modifier.containerTransform(DialpadTransformKey, FloatingActionButtonDefaults.mediumShape),
             ) {
-                Icon(Icons.Rounded.Dialpad, stringResource(R.string.keypad))
+                Icon(Icons.Rounded.Dialpad, stringResource(R.string.keypad), Modifier.size(FloatingActionButtonDefaults.MediumIconSize))
             }
         },
     ) { padding ->
-        Crossfade(targetState = tab, label = "tab") { current ->
+        // M3 top level pattern: the old tab fades out quickly, then the new one fades in.
+        AnimatedContent(
+            targetState = tab,
+            transitionSpec = { topLevelEnter() togetherWith topLevelExit() },
+            label = "tab",
+        ) { current ->
             when (current) {
                 0 -> RecentsTab(
                     callLog = callLog,
@@ -180,9 +200,9 @@ fun HomeScreen(
                 TextButton(onClick = {
                     confirmClear = false
                     scope.launch(Dispatchers.IO) { callLog.clearAll() }
-                }) { Text(stringResource(R.string.clear)) }
+                }, shapes = ButtonDefaults.shapes()) { Text(stringResource(R.string.clear)) }
             },
-            dismissButton = { TextButton(onClick = { confirmClear = false }) { Text(stringResource(R.string.cancel)) } },
+            dismissButton = { TextButton(onClick = { confirmClear = false }, shapes = ButtonDefaults.shapes()) { Text(stringResource(R.string.cancel)) } },
         )
     }
 }

@@ -1,5 +1,11 @@
 package dev.hostyn.phone.data
 
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.stateIn
+
 import android.accounts.AccountManager
 import android.content.ContentProviderOperation
 import android.content.ContentResolver
@@ -42,6 +48,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
 
 class ContactsRepository(private val context: Context) {
+    private val cacheScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private val resolver: ContentResolver get() = context.contentResolver
 
     /** Emits whenever something changes in the contacts provider. */
@@ -69,6 +76,13 @@ class ContactsRepository(private val context: Context) {
 
     fun observeContacts(): Flow<List<ContactSummary>> =
         contactChanges().map { queryContacts() }.flowOn(Dispatchers.IO)
+
+    /**
+     * All contacts, kept for a while after the list leaves the screen: coming back to it shows the
+     * last list straight away (and its rows are there for the container transform back to them).
+     */
+    val contacts: StateFlow<List<ContactSummary>?> =
+        observeContacts().stateIn(cacheScope, SharingStarted.WhileSubscribed(60_000), null)
 
     fun observeContact(id: Long): Flow<ContactDetail?> =
         contactChanges().map { queryContact(id) }.flowOn(Dispatchers.IO)

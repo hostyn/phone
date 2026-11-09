@@ -1,4 +1,9 @@
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
+
 package dev.hostyn.phone.ui.components
+
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.LinearWavyProgressIndicator
 
 import android.net.Uri
 import android.widget.Toast
@@ -72,7 +77,7 @@ fun ImportDialog(uri: Uri, repo: ContactsRepository, onDone: () -> Unit) {
                             verticalAlignment = Alignment.CenterVertically,
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .clip(RoundedCornerShape(12.dp))
+                                .clip(MaterialTheme.shapes.medium)
                                 .selectable(selected = a == selected, enabled = !importing, role = Role.RadioButton) { selected = a }
                                 .padding(vertical = 4.dp),
                         ) {
@@ -89,12 +94,13 @@ fun ImportDialog(uri: Uri, repo: ContactsRepository, onDone: () -> Unit) {
                 }
                 if (importing) {
                     Spacer(Modifier.height(16.dp))
-                    LinearProgressIndicator(Modifier.fillMaxWidth())
+                    LinearWavyProgressIndicator(Modifier.fillMaxWidth())
                 }
             }
         },
         confirmButton = {
             TextButton(
+                shapes = ButtonDefaults.shapes(),
                 enabled = !importing,
                 onClick = {
                     importing = true

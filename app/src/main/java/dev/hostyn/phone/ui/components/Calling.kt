@@ -1,4 +1,8 @@
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
+
 package dev.hostyn.phone.ui.components
+
+import androidx.compose.material3.ButtonDefaults
 
 import dev.hostyn.phone.R
 import androidx.compose.ui.res.stringResource
@@ -138,7 +142,7 @@ fun DefaultDialerBanner(modifier: Modifier = Modifier) {
     if (isDefault) return
 
     Surface(
-        shape = RoundedCornerShape(28.dp),
+        shape = MaterialTheme.shapes.extraLarge,
         color = MaterialTheme.colorScheme.secondaryContainer,
         modifier = modifier.padding(horizontal = 16.dp, vertical = 8.dp).fillMaxWidth(),
     ) {
@@ -155,7 +159,7 @@ fun DefaultDialerBanner(modifier: Modifier = Modifier) {
                 color = MaterialTheme.colorScheme.onSecondaryContainer,
             )
             Spacer(Modifier.height(16.dp))
-            Button(onClick = request) { Text(stringResource(R.string.set_as_default)) }
+            Button(onClick = request, shapes = ButtonDefaults.shapes()) { Text(stringResource(R.string.set_as_default)) }
         }
     }
 }

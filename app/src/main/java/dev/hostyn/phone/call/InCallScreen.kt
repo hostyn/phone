@@ -20,7 +20,6 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -56,16 +55,12 @@ import androidx.compose.material.icons.rounded.PhonePaused
 import androidx.compose.material.icons.rounded.SimCard
 import androidx.compose.material.icons.rounded.SwapCalls
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.ButtonGroup
-import androidx.compose.material3.ButtonGroupScope
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.FilledTonalButton
-import androidx.compose.material3.FilledTonalIconButton
-import androidx.compose.material3.FilledTonalIconToggleButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.ListItemDefaults
@@ -111,7 +106,11 @@ import androidx.compose.ui.unit.dp
 import androidx.graphics.shapes.Morph
 import dev.hostyn.phone.MainActivity
 import dev.hostyn.phone.R
+import dev.hostyn.phone.ui.components.ActionGroup
+import dev.hostyn.phone.ui.components.ActionSize
 import dev.hostyn.phone.ui.components.ContactAvatar
+import dev.hostyn.phone.ui.components.action
+import dev.hostyn.phone.ui.components.emptyAction
 import dev.hostyn.phone.ui.components.Dialpad
 import dev.hostyn.phone.ui.theme.CustomColor
 import dev.hostyn.phone.ui.theme.callGreen
@@ -584,9 +583,9 @@ private fun CallControls(call: CallUi, held: CallUi?, audio: CallAudioState?, on
     val mergeLabel = stringResource(R.string.merge)
 
     Column(verticalArrangement = Arrangement.spacedBy(16.dp), modifier = Modifier.fillMaxWidth()) {
-        ControlGroup {
-            control(Icons.Rounded.MicOff, muteLabel, checked = muted) { CallManager.setMuted(!muted) }
-            control(Icons.Rounded.Dialpad, keypadLabel, enabled = call.phase == CallPhase.ACTIVE, onClick = onKeypad)
+        ActionGroup {
+            action(Icons.Rounded.MicOff, muteLabel, ActionSize.Large, checked = muted) { CallManager.setMuted(!muted) }
+            action(Icons.Rounded.Dialpad, keypadLabel, ActionSize.Large, enabled = call.phase == CallPhase.ACTIVE, onClick = onKeypad)
             if (hasBluetooth) {
                 val (icon, label) = when (route) {
                     CallAudioState.ROUTE_BLUETOOTH -> Icons.Rounded.Bluetooth to bluetoothLabel
@@ -594,7 +593,7 @@ private fun CallControls(call: CallUi, held: CallUi?, audio: CallAudioState?, on
                     CallAudioState.ROUTE_WIRED_HEADSET -> Icons.Rounded.Headset to headsetLabel
                     else -> Icons.Rounded.PhoneInTalk to earpieceLabel
                 }
-                control(icon, label, checked = route != CallAudioState.ROUTE_EARPIECE, onClick = { routeMenu = true }, extra = {
+                action(icon, label, ActionSize.Large, checked = route != CallAudioState.ROUTE_EARPIECE, onClick = { routeMenu = true }, extra = {
                     DropdownMenu(expanded = routeMenu, onDismissRequest = { routeMenu = false }) {
                         val options = buildList {
                             add(Triple(CallAudioState.ROUTE_BLUETOOTH, bluetoothLabel, Icons.Rounded.Bluetooth))
@@ -614,13 +613,13 @@ private fun CallControls(call: CallUi, held: CallUi?, audio: CallAudioState?, on
                 })
             } else {
                 val speaker = route == CallAudioState.ROUTE_SPEAKER
-                control(Icons.AutoMirrored.Rounded.VolumeUp, speakerLabel, checked = speaker) {
+                action(Icons.AutoMirrored.Rounded.VolumeUp, speakerLabel, ActionSize.Large, checked = speaker) {
                     CallManager.setRoute(if (speaker) CallAudioState.ROUTE_WIRED_OR_EARPIECE else CallAudioState.ROUTE_SPEAKER)
                 }
             }
         }
-        ControlGroup {
-            control(Icons.Rounded.AddIcCall, addLabel, enabled = call.phase == CallPhase.ACTIVE) {
+        ActionGroup {
+            action(Icons.Rounded.AddIcCall, addLabel, ActionSize.Large, enabled = call.phase == CallPhase.ACTIVE) {
                 context.startActivity(
                     Intent(context, MainActivity::class.java)
                         .setAction(Intent.ACTION_DIAL)
@@ -629,90 +628,21 @@ private fun CallControls(call: CallUi, held: CallUi?, audio: CallAudioState?, on
             }
             if (held != null) {
                 // Two calls: swap between them.
-                control(Icons.Rounded.SwapCalls, swapLabel) { CallManager.setHold(held.id, false) }
+                action(Icons.Rounded.SwapCalls, swapLabel, ActionSize.Large) { CallManager.setHold(held.id, false) }
             } else {
                 val onHold = call.phase == CallPhase.HOLDING
-                control(Icons.Rounded.Pause, holdLabel, checked = onHold, enabled = active && call.canHold) {
+                action(Icons.Rounded.Pause, holdLabel, ActionSize.Large, checked = onHold, enabled = active && call.canHold) {
                     CallManager.setHold(call.id, !onHold)
                 }
             }
             if (held != null && call.canMerge) {
-                control(Icons.Rounded.CallMerge, mergeLabel) { CallManager.merge(call.id) }
+                action(Icons.Rounded.CallMerge, mergeLabel, ActionSize.Large) { CallManager.merge(call.id) }
             } else {
                 // Keeps the second row on the same three-column grid as the first.
-                customItem(buttonGroupContent = { Spacer(Modifier.weight(1f)) }, menuContent = {})
+                emptyAction()
             }
         }
     }
-}
-
-@Composable
-private fun ControlGroup(content: ButtonGroupScope.() -> Unit) {
-    ButtonGroup(
-        overflowIndicator = {},
-        modifier = Modifier.fillMaxWidth(),
-        content = content,
-    )
-}
-
-/**
- * One in-call control in a [ButtonGroup]: a large tonal icon button with its label underneath.
- * With [checked] it is a toggle (round when off, square when on); otherwise a plain action.
- */
-private fun ButtonGroupScope.control(
-    icon: ImageVector,
-    label: String,
-    checked: Boolean? = null,
-    enabled: Boolean = true,
-    extra: @Composable () -> Unit = {},
-    onClick: () -> Unit,
-) {
-    customItem(
-        buttonGroupContent = {
-            val source = remember { MutableInteractionSource() }
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                modifier = Modifier.weight(1f).animateWidth(source),
-            ) {
-                val size = Modifier.fillMaxWidth().height(IconButtonDefaults.largeContainerSize().height)
-                Box {
-                    if (checked != null) {
-                        FilledTonalIconToggleButton(
-                            checked = checked,
-                            onCheckedChange = { onClick() },
-                            shapes = IconButtonDefaults.toggleableShapes(
-                                shape = IconButtonDefaults.largeRoundShape,
-                                pressedShape = IconButtonDefaults.largePressedShape,
-                                checkedShape = IconButtonDefaults.largeSelectedRoundShape,
-                            ),
-                            enabled = enabled,
-                            interactionSource = source,
-                            modifier = size,
-                        ) { Icon(icon, label, Modifier.size(IconButtonDefaults.largeIconSize)) }
-                    } else {
-                        FilledTonalIconButton(
-                            onClick = onClick,
-                            shapes = IconButtonDefaults.shapes(IconButtonDefaults.largeRoundShape, IconButtonDefaults.largePressedShape),
-                            enabled = enabled,
-                            interactionSource = source,
-                            modifier = size,
-                        ) { Icon(icon, label, Modifier.size(IconButtonDefaults.largeIconSize)) }
-                    }
-                    extra()
-                }
-                Spacer(Modifier.height(8.dp))
-                Text(
-                    label,
-                    style = MaterialTheme.typography.labelLarge,
-                    textAlign = TextAlign.Center,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    color = if (enabled) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f),
-                )
-            }
-        },
-        menuContent = {},
-    )
 }
 
 @Composable

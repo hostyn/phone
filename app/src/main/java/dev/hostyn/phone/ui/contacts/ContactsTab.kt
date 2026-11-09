@@ -1,3 +1,5 @@
+@file:OptIn(ExperimentalMaterial3ExpressiveApi::class)
+
 package dev.hostyn.phone.ui.contacts
 
 import dev.hostyn.phone.data.NameOrder
@@ -24,11 +26,9 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.PersonAdd
 import androidx.compose.material.icons.rounded.PersonSearch
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -48,7 +48,14 @@ import dev.hostyn.phone.ui.components.ContactAvatar
 import dev.hostyn.phone.ui.components.EmptyState
 import dev.hostyn.phone.ui.components.foldAccents
 import dev.hostyn.phone.ui.components.initialOf
-import dev.hostyn.phone.ui.components.segmentShape
+import dev.hostyn.phone.ui.components.segmentedColors
+import dev.hostyn.phone.ui.theme.LocalTransformOrigin
+import dev.hostyn.phone.ui.theme.containerTransform
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.ListItemDefaults
+import androidx.compose.material3.LoadingIndicator
+import androidx.compose.material3.SegmentedListItem
+import androidx.compose.ui.graphics.Color
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -79,7 +86,7 @@ private fun ContactSummary.matches(q: String): Boolean {
 private sealed interface ListRow {
     val key: Any
     data class Header(val letter: String) : ListRow { override val key = "h_$letter" }
-    data class Item(val contact: ContactSummary, val first: Boolean, val last: Boolean) : ListRow { override val key = contact.id }
+    data class Item(val contact: ContactSummary, val index: Int, val count: Int) : ListRow { override val key = contact.id }
 }
 
 private fun groupRows(contacts: List<ContactSummary>): List<ListRow> {
@@ -87,7 +94,7 @@ private fun groupRows(contacts: List<ContactSummary>): List<ListRow> {
     contacts.groupBy { initialOf(it.sortKey).foldAccents().uppercase().let { l -> if (l.first().isLetter()) l else "#" } }
         .forEach { (letter, group) ->
             rows += ListRow.Header(letter)
-            group.forEachIndexed { i, c -> rows += ListRow.Item(c, i == 0, i == group.lastIndex) }
+            group.forEachIndexed { i, c -> rows += ListRow.Item(c, i, group.size) }
         }
     return rows
 }
@@ -102,7 +109,7 @@ fun ContactsTab(
     onCreate: () -> Unit,
     header: @Composable () -> Unit = {},
 ) {
-    val contacts by remember { repo.observeContacts() }.collectAsState(initial = null)
+    val contacts by repo.contacts.collectAsState()
     val all = contacts
     val q = query.trim().foldAccents()
     val filtered = remember(all, q) { all?.let { list -> if (q.isEmpty()) list else list.filter { it.matches(q) } } }
@@ -110,7 +117,7 @@ fun ContactsTab(
     val rows = remember(filtered) { groupRows(filtered.orEmpty()) }
 
     if (all == null) {
-        Box(Modifier.fillMaxSize().padding(contentPadding), Alignment.Center) { CircularProgressIndicator() }
+        Box(Modifier.fillMaxSize().padding(contentPadding), Alignment.Center) { LoadingIndicator() }
         return
     }
 
@@ -129,7 +136,7 @@ fun ContactsTab(
         state = listState,
         contentPadding = PaddingValues(
             top = contentPadding.calculateTopPadding(),
-            bottom = contentPadding.calculateBottomPadding() + 88.dp,
+            bottom = contentPadding.calculateBottomPadding() + 112.dp,
         ),
         modifier = Modifier.fillMaxSize(),
     ) {
@@ -166,7 +173,7 @@ fun ContactsTab(
             when (row) {
                 is ListRow.Header -> Text(
                     row.letter,
-                    style = MaterialTheme.typography.labelLarge,
+                    style = MaterialTheme.typography.labelLargeEmphasized,
                     color = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.animateItem().padding(start = 32.dp, top = 16.dp, bottom = 8.dp),
                 )
@@ -236,7 +243,7 @@ private fun FastScroller(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 modifier = Modifier
                     .width(20.dp)
-                    .clip(RoundedCornerShape(10.dp))
+                    .clip(CircleShape)
                     .then(if (active) Modifier.background(MaterialTheme.colorScheme.surfaceContainerHighest) else Modifier)
                     .pointerInput(sections, leading) {
                         fun select(y: Float) {
@@ -278,22 +285,20 @@ private fun FastScroller(
 
 @Composable
 private fun CreateRow(onCreate: () -> Unit) {
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier
-            .padding(horizontal = 16.dp, vertical = 4.dp)
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(24.dp))
-            .clickable(onClick = onCreate)
-            .padding(horizontal = 16.dp, vertical = 10.dp),
-    ) {
-        Surface(shape = CircleShape, color = MaterialTheme.colorScheme.primary, modifier = Modifier.size(44.dp)) {
-            Box(contentAlignment = Alignment.Center) {
-                Icon(Icons.Rounded.PersonAdd, null, tint = MaterialTheme.colorScheme.onPrimary)
+    SegmentedListItem(
+        onClick = onCreate,
+        shapes = ListItemDefaults.segmentedShapes(0, 1),
+        colors = ListItemDefaults.segmentedColors(containerColor = Color.Transparent),
+        leadingContent = {
+            Surface(shape = CircleShape, color = MaterialTheme.colorScheme.primary, modifier = Modifier.size(40.dp)) {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(Icons.Rounded.PersonAdd, null, tint = MaterialTheme.colorScheme.onPrimary)
+                }
             }
-        }
-        Spacer(Modifier.width(16.dp))
-        Text(stringResource(R.string.create_contact), style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.primary)
+        },
+        modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
+    ) {
+        Text(stringResource(R.string.create_contact), color = MaterialTheme.colorScheme.primary)
     }
 }
 
@@ -314,12 +319,15 @@ private fun FavoritesRow(favorites: List<ContactSummary>, onOpen: (Long) -> Unit
         horizontalArrangement = Arrangement.spacedBy(4.dp),
     ) {
         items(favorites, key = { it.id }) { c ->
+            val origin = LocalTransformOrigin.current
+            val key = "fav-${c.id}"
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 modifier = Modifier
                     .width(84.dp)
-                    .clip(RoundedCornerShape(20.dp))
-                    .clickable { onOpen(c.id) }
+                    .containerTransform(key, MaterialTheme.shapes.largeIncreased)
+                    .clip(MaterialTheme.shapes.largeIncreased)
+                    .clickable { origin.key = key; onOpen(c.id) }
                     .padding(vertical = 8.dp, horizontal = 4.dp),
             ) {
                 ContactAvatar(c.name, c.photoUri, c.id, size = 60.dp)
@@ -337,31 +345,21 @@ private fun FavoritesRow(favorites: List<ContactSummary>, onOpen: (Long) -> Unit
 
 @Composable
 private fun ContactRow(row: ListRow.Item, onOpen: (Long) -> Unit, modifier: Modifier = Modifier) {
-    val shape = segmentShape(row.first, row.last)
-    Surface(
-        shape = shape,
-        color = MaterialTheme.colorScheme.surfaceContainer,
+    val origin = LocalTransformOrigin.current
+    // The contact's page grows out of this row (container transform).
+    val key = "contact-${row.contact.id}"
+    val shapes = ListItemDefaults.segmentedShapes(row.index, row.count)
+    SegmentedListItem(
+        onClick = { origin.key = key; onOpen(row.contact.id) },
+        shapes = shapes,
+        colors = segmentedColors(),
+        leadingContent = { ContactAvatar(row.contact.name, row.contact.photoUri, row.contact.id, size = 40.dp) },
         modifier = modifier
             .padding(horizontal = 16.dp)
-            .padding(bottom = if (row.last) 0.dp else 2.dp)
-            .fillMaxWidth()
-            .clip(shape)
-            .clickable { onOpen(row.contact.id) },
+            .padding(bottom = if (row.index == row.count - 1) 0.dp else ListItemDefaults.SegmentedGap)
+            .containerTransform(key, shapes.shape),
     ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
-        ) {
-            ContactAvatar(row.contact.name, row.contact.photoUri, row.contact.id, size = 44.dp)
-            Spacer(Modifier.width(16.dp))
-            Text(
-                row.contact.name,
-                style = MaterialTheme.typography.bodyLarge,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.weight(1f),
-            )
-        }
+        Text(row.contact.name, maxLines = 1, overflow = TextOverflow.Ellipsis)
     }
 }
 
