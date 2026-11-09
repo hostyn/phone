@@ -18,6 +18,15 @@
 
     <uses-feature android:name="android.hardware.telephony" android:required="false" />
 
+    <!-- Chat apps we offer a button for (see MessagingApp). -->
+    <queries>
+        <package android:name="com.whatsapp" />
+        <package android:name="com.whatsapp.w4b" />
+        <package android:name="org.telegram.messenger" />
+        <package android:name="org.telegram.messenger.web" />
+        <package android:name="org.thoughtcrime.securesms" />
+    </queries>
+
     <application
         android:name=".PhoneApp"
         android:allowBackup="true"

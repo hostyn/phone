@@ -56,6 +56,17 @@ class AppSettings(context: Context) {
         private set
     fun updateDialpadVibration(value: Boolean) { dialpadVibration = value; prefs.edit().putBoolean("dialpad_vibration", value).apply() }
 
+    // --- Chat apps ---
+
+    /** Chat apps turned off; the rest of the installed ones get a button on contacts. */
+    var hiddenMessagingApps by mutableStateOf(prefs.getStringSet("hidden_messaging_apps", null).orEmpty().toSet())
+        private set
+    fun updateMessagingApp(app: MessagingApp, shown: Boolean) {
+        hiddenMessagingApps = if (shown) hiddenMessagingApps - app.name else hiddenMessagingApps + app.name
+        prefs.edit().putStringSet("hidden_messaging_apps", hiddenMessagingApps).apply()
+    }
+    fun showsMessagingApp(app: MessagingApp) = app.name !in hiddenMessagingApps
+
     // --- Automatic backup ---
 
     var backupEnabled by mutableStateOf(prefs.getBoolean("backup_enabled", false))

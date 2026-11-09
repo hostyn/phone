@@ -16,6 +16,12 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import dev.hostyn.phone.ui.components.rememberMessagingButtons
+import dev.hostyn.phone.ui.components.open
+import dev.hostyn.phone.ui.components.MessagingButton
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -131,6 +137,7 @@ fun DetailScreen(
     val context = LocalContext.current
     val clipboard = LocalClipboardManager.current
     val placeCall = rememberCallLauncher()
+    val messagingButtons = rememberMessagingButtons()
     val snackbar = remember { SnackbarHostState() }
     var menu by remember { mutableStateOf(false) }
     var confirmDelete by remember { mutableStateOf(false) }
@@ -315,10 +322,12 @@ fun DetailScreen(
 
             val firstPhone = contact.phones.firstOrNull()?.value
             val firstEmail = contact.emails.firstOrNull()?.value
-            Row(horizontalArrangement = Arrangement.spacedBy(28.dp)) {
-                QuickAction(Icons.Rounded.Call, stringResource(R.string.call), firstPhone != null) { firstPhone?.let(placeCall) }
-                QuickAction(Icons.AutoMirrored.Rounded.Message, stringResource(R.string.message), firstPhone != null) { firstPhone?.let(context::sms) }
-                QuickAction(Icons.Rounded.MailOutline, stringResource(R.string.email), firstEmail != null) { firstEmail?.let(context::email) }
+            val chats = if (firstPhone != null) messagingButtons else emptyList()
+            QuickActionRow(3 + chats.size) { item ->
+                QuickAction(Icons.Rounded.Call, stringResource(R.string.call), firstPhone != null, item) { firstPhone?.let(placeCall) }
+                QuickAction(Icons.AutoMirrored.Rounded.Message, stringResource(R.string.message), firstPhone != null, item) { firstPhone?.let(context::sms) }
+                chats.forEach { app -> QuickAction(app, firstPhone!!, item) }
+                QuickAction(Icons.Rounded.MailOutline, stringResource(R.string.email), firstEmail != null, item) { firstEmail?.let(context::email) }
             }
             Spacer(Modifier.height(28.dp))
 
@@ -478,24 +487,52 @@ fun DetailScreen(
     }
 }
 
+/** A row of [QuickAction]s: spaced out when there are few, sharing the width when there are many. */
 @Composable
-internal fun QuickAction(icon: ImageVector, label: String, enabled: Boolean, onClick: () -> Unit) {
-    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+internal fun QuickActionRow(count: Int, content: @Composable (item: Modifier) -> Unit) {
+    if (count <= 3) {
+        Row(horizontalArrangement = Arrangement.spacedBy(28.dp)) { content(Modifier.width(64.dp)) }
+    } else {
+        Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+            content(Modifier.weight(1f))
+        }
+    }
+}
+
+@Composable
+internal fun QuickAction(icon: ImageVector, label: String, enabled: Boolean, modifier: Modifier = Modifier.width(64.dp), onClick: () -> Unit) =
+    QuickAction(label, enabled, modifier, onClick) { Icon(icon, null) }
+
+/** A chat app's button: its own icon, which already has its colors. */
+@Composable
+internal fun QuickAction(app: MessagingButton, number: String, modifier: Modifier) {
+    val context = LocalContext.current
+    QuickAction(app.label, enabled = true, modifier = modifier, onClick = { app.open(context, number) }) {
+        Image(app.icon, null, modifier = Modifier.size(30.dp))
+    }
+}
+
+@Composable
+internal fun QuickAction(label: String, enabled: Boolean, modifier: Modifier, onClick: () -> Unit, icon: @Composable () -> Unit) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = modifier) {
         FilledTonalIconButton(
             onClick = onClick,
             enabled = enabled,
-            modifier = Modifier.size(width = 64.dp, height = 52.dp),
+            modifier = Modifier.widthIn(max = 64.dp).fillMaxWidth().height(52.dp),
             shape = RoundedCornerShape(18.dp),
             colors = IconButtonDefaults.filledTonalIconButtonColors(
                 containerColor = MaterialTheme.colorScheme.primaryContainer,
                 contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
             ),
-        ) { Icon(icon, null) }
+        ) { icon() }
         Spacer(Modifier.height(6.dp))
         Text(
             label,
             style = MaterialTheme.typography.labelMedium,
             color = if (enabled) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f),
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            textAlign = TextAlign.Center,
         )
     }
 }

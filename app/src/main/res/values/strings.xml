@@ -121,6 +121,9 @@
 
     <!-- Recents actions -->
     <string name="copy_number">Copy number</string>
+    <string name="chat_buttons">Chat buttons on contacts</string>
+    <string name="chat_buttons_none">No chat apps installed</string>
+    <string name="chat_buttons_none_summary">Install WhatsApp, Telegram or Signal to open a chat from a contact</string>
     <string name="delete_from_history">Delete from history</string>
     <string name="clear_history">Clear call history</string>
     <string name="clear_history_body">All calls will be deleted from your history.</string>

@@ -66,12 +66,21 @@ import dev.hostyn.phone.ui.components.rememberCallLauncher
 import dev.hostyn.phone.ui.components.rememberOnResume
 import dev.hostyn.phone.ui.components.sms
 import dev.hostyn.phone.ui.detail.QuickAction
+import dev.hostyn.phone.ui.components.rememberMessagingButtons
+import dev.hostyn.phone.ui.detail.QuickActionRow
+import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.draw.clip
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.combinedClickable
+import android.view.HapticFeedbackConstants
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 /** Details of a number that isn't a contact: actions and its call history. */
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
 fun NumberScreen(
     number: String,
@@ -93,6 +102,16 @@ fun NumberScreen(
     var confirmBlock by remember { mutableStateOf(false) }
     var confirmDelete by remember { mutableStateOf(false) }
     val formatted = formatPhone(context, number)
+    val messagingButtons = rememberMessagingButtons()
+    val view = LocalView.current
+    val snackbar = remember { SnackbarHostState() }
+    val copyLabel = stringResource(R.string.copy_number)
+    val copiedText = stringResource(R.string.copied)
+    fun copy() {
+        clipboard.setText(AnnotatedString(number))
+        // Android 13+ shows its own clipboard preview; a snackbar would say the same thing twice.
+        if (android.os.Build.VERSION.SDK_INT < 33) scope.launch { snackbar.showSnackbar(copiedText) }
+    }
 
     // Saved as a contact in the meantime (e.g. after “Add”): show the contact instead.
     val contactId by produceState<Long?>(null, number) {
@@ -115,6 +134,7 @@ fun NumberScreen(
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.surface,
+        snackbarHost = { SnackbarHost(snackbar) },
         topBar = {
             TopAppBar(
                 title = {},
@@ -129,7 +149,7 @@ fun NumberScreen(
                             DropdownMenuItem(
                                 text = { Text(stringResource(R.string.copy_number)) },
                                 leadingIcon = { Icon(Icons.Rounded.ContentCopy, null) },
-                                onClick = { menu = false; clipboard.setText(AnnotatedString(number)) },
+                                onClick = { menu = false; copy() },
                             )
                             if (canBlock) {
                                 DropdownMenuItem(
@@ -163,11 +183,19 @@ fun NumberScreen(
             Spacer(Modifier.height(8.dp))
             ContactAvatar("", null, number.hashCode().toLong(), size = 128.dp)
             Spacer(Modifier.height(20.dp))
+            // Long-press the number to copy it, like the numbers of a contact.
             Text(
                 formatted,
                 style = MaterialTheme.typography.headlineMedium,
                 textAlign = TextAlign.Center,
-                modifier = Modifier.padding(horizontal = 24.dp),
+                modifier = Modifier
+                    .padding(horizontal = 24.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .combinedClickable(onClickLabel = null, onLongClickLabel = copyLabel, onClick = {}, onLongClick = {
+                        view.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
+                        copy()
+                    })
+                    .padding(horizontal = 8.dp, vertical = 4.dp),
             )
             if (isBlocked) {
                 Spacer(Modifier.height(8.dp))
@@ -178,10 +206,11 @@ fun NumberScreen(
                 }
             }
             Spacer(Modifier.height(24.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(28.dp)) {
-                QuickAction(Icons.Rounded.Call, stringResource(R.string.call), true) { placeCall(number) }
-                QuickAction(Icons.AutoMirrored.Rounded.Message, stringResource(R.string.message), true) { context.sms(number) }
-                QuickAction(Icons.Rounded.PersonAdd, stringResource(R.string.add), true) { onAddContact(number) }
+            QuickActionRow(3 + messagingButtons.size) { item ->
+                QuickAction(Icons.Rounded.Call, stringResource(R.string.call), true, item) { placeCall(number) }
+                QuickAction(Icons.AutoMirrored.Rounded.Message, stringResource(R.string.message), true, item) { context.sms(number) }
+                messagingButtons.forEach { app -> QuickAction(app, number, item) }
+                QuickAction(Icons.Rounded.PersonAdd, stringResource(R.string.add), true, item) { onAddContact(number) }
             }
             Spacer(Modifier.height(28.dp))
             CallHistoryCard(history.orEmpty())

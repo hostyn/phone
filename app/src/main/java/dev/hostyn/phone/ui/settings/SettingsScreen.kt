@@ -53,6 +53,9 @@ import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
+import dev.hostyn.phone.ui.components.rememberInstalledMessagingApps
+import androidx.compose.material.icons.automirrored.rounded.Chat
+import androidx.compose.foundation.Image
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBarDefaults
@@ -290,6 +293,38 @@ fun SettingsScreen(
                         summary = stringResource(R.string.calling_accounts_summary),
                         onClick = { open(Intent(TelecomManager.ACTION_CHANGE_PHONE_ACCOUNTS)) },
                     )
+                }
+            }
+
+            // --- Chat apps ---
+            item {
+                val apps = rememberInstalledMessagingApps()
+                Section(stringResource(R.string.chat_buttons)) {
+                    if (apps.isEmpty()) {
+                        SettingRow(
+                            icon = Icons.AutoMirrored.Rounded.Chat,
+                            title = stringResource(R.string.chat_buttons_none),
+                            summary = stringResource(R.string.chat_buttons_none_summary),
+                        )
+                    } else {
+                        apps.forEach { app ->
+                            val checked = settings.showsMessagingApp(app.installed.app)
+                            val onChange = { shown: Boolean -> settings.updateMessagingApp(app.installed.app, shown) }
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable { onChange(!checked) }
+                                    .padding(horizontal = 20.dp, vertical = 14.dp),
+                            ) {
+                                Image(app.icon, null, modifier = Modifier.size(24.dp))
+                                Spacer(Modifier.width(20.dp))
+                                Text(app.label, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
+                                Spacer(Modifier.width(12.dp))
+                                Switch(checked = checked, onCheckedChange = onChange)
+                            }
+                        }
+                    }
                 }
             }
 

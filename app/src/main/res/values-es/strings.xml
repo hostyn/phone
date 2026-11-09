@@ -120,6 +120,9 @@
 
     <!-- Recents actions -->
     <string name="copy_number">Copiar número</string>
+    <string name="chat_buttons">Botones de chat en contactos</string>
+    <string name="chat_buttons_none">No hay apps de chat instaladas</string>
+    <string name="chat_buttons_none_summary">Instala WhatsApp, Telegram o Signal para abrir un chat desde un contacto</string>
     <string name="delete_from_history">Eliminar del historial</string>
     <string name="clear_history">Borrar historial de llamadas</string>
     <string name="clear_history_body">Se eliminarán todas las llamadas del historial.</string>

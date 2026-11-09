@@ -47,7 +47,7 @@ fun ContentResolver.loadContactPhoto(contactId: Long): Bitmap? = try {
 
 private var cachedIso: String? = null
 
-private fun countryIso(context: Context): String = cachedIso ?: run {
+internal fun countryIso(context: Context): String = cachedIso ?: run {
     val tm = context.getSystemService(TelephonyManager::class.java)
     val iso = listOf(tm?.simCountryIso, tm?.networkCountryIso, Locale.getDefault().country)
         .firstOrNull { !it.isNullOrBlank() } ?: "ES"
