@@ -115,7 +115,7 @@ import androidx.compose.material3.Checkbox
 import dev.hostyn.phone.data.shareContact
 import android.content.Context
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.ButtonGroupScope
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.SegmentedListItem
@@ -492,7 +492,8 @@ fun DetailScreen(
 }
 
 /** A chat app's action: its own icon, which already has its colors. */
-internal fun ButtonGroupScope.chatAction(app: MessagingButton, number: String, context: Context) =
+@Composable
+internal fun RowScope.chatAction(app: MessagingButton, number: String, context: Context) =
     action({ Image(app.icon, null, Modifier.size(28.dp)) }, app.label, ActionSize.Medium) { app.open(context, number) }
 
 /** One piece of contact information in the segmented list: tap to use it, long-press to copy it. */
