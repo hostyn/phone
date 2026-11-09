@@ -48,7 +48,9 @@ import androidx.compose.material.icons.rounded.DarkMode
 import androidx.compose.material.icons.rounded.Download
 import androidx.compose.material.icons.rounded.Folder
 import androidx.compose.material.icons.rounded.History
+import androidx.compose.material.icons.rounded.Code
 import androidx.compose.material.icons.rounded.Info
+import dev.hostyn.phone.ui.components.openUrl
 import androidx.compose.material.icons.rounded.Inventory2
 import androidx.compose.material.icons.rounded.Palette
 import androidx.compose.material.icons.rounded.SimCard
@@ -359,6 +361,12 @@ fun SettingsScreen(
                         try { context.packageManager.getPackageInfo(context.packageName, 0).versionName } catch (_: Exception) { null }
                     }
                     setting(icon = Icons.Rounded.Info, title = stringResource(R.string.version), summary = version.orEmpty())
+                    setting(
+                        icon = Icons.Rounded.Code,
+                        title = stringResource(R.string.source_code),
+                        summary = SourceUrl.removePrefix("https://"),
+                        onClick = { context.openUrl(SourceUrl) },
+                    )
                 }
             }
         }
@@ -367,6 +375,9 @@ fun SettingsScreen(
     choice?.let { c -> ChoiceDialog(c) { choice = null } }
     importUri?.let { uri -> ImportDialog(uri, repo) { importUri = null } }
 }
+
+/** Where the app's code and releases live. */
+private const val SourceUrl = "https://github.com/hostyn/phone"
 
 // --- Labels ---
 

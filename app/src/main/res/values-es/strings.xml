@@ -283,6 +283,7 @@
     <string name="backup_restore_hint">Para restaurar, usa Importar contactos y elige el archivo más reciente de la carpeta.</string>
     <string name="about">Acerca de</string>
     <string name="version">Versión</string>
+    <string name="source_code">Código fuente en GitHub</string>
     <plurals name="backup_keep_count">
         <item quantity="one">La última</item>
         <item quantity="many">Las últimas %d</item>

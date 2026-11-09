@@ -284,6 +284,7 @@
     <string name="backup_restore_hint">To restore, use Import contacts and pick the newest file in the folder.</string>
     <string name="about">About</string>
     <string name="version">Version</string>
+    <string name="source_code">Source code on GitHub</string>
     <plurals name="backup_keep_count">
         <item quantity="one">The latest %d</item>
         <item quantity="other">The latest %d</item>
