@@ -65,7 +65,12 @@ class CallLogRepository(private val context: Context) {
                 trySend(Unit)
             }
         }
-        resolver.registerContentObserver(Calls.CONTENT_URI, true, observer)
+        // Without access to the call log (not the default phone app and READ_CALL_LOG not granted)
+        // there is nothing to watch: registering would throw. The queries then return no calls.
+        try {
+            resolver.registerContentObserver(Calls.CONTENT_URI, true, observer)
+        } catch (_: SecurityException) {
+        }
         // Names depend on contacts: refresh when they change too.
         if (contacts) resolver.registerContentObserver(android.provider.ContactsContract.Contacts.CONTENT_URI, true, observer)
         trySend(Unit)
