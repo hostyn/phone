@@ -452,8 +452,9 @@ private fun ChoiceDialog(choice: Choice, onDismiss: () -> Unit) {
 }
 
 /** A titled M3 segmented list of settings. */
+// Inline, like SegmentedGroup, so a switch's new value redraws its item (see SegmentedGroup).
 @Composable
-private fun Section(title: String, content: @Composable SegmentedGroupScope.() -> Unit) {
+private inline fun Section(title: String, content: @Composable SegmentedGroupScope.() -> Unit) {
     ListHeader(title, Modifier.padding(top = 8.dp))
     SegmentedGroup(content = content)
 }

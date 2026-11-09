@@ -26,7 +26,7 @@ fun segmentedColors(): ListItemColors =
 
 /** Collects the items of a [SegmentedGroup]; each gets its shape from its place in the group. */
 class SegmentedGroupScope {
-    internal val items = mutableListOf<@Composable (ListItemShapes) -> Unit>()
+    @PublishedApi internal val items = mutableListOf<@Composable (ListItemShapes) -> Unit>()
 
     fun item(content: @Composable (shapes: ListItemShapes) -> Unit) {
         items += content
@@ -34,20 +34,29 @@ class SegmentedGroupScope {
 }
 
 /**
- * An M3 Expressive segmented list built item by item (the builder may read resources and state): large corners at the ends of the group,
- * small ones between items, and the standard gap. Items are usually [androidx.compose.material3.SegmentedListItem]s
- * using the shapes they are given.
+ * An M3 Expressive segmented list built item by item (the builder may read resources and state):
+ * large corners at the ends of the group, small ones between items, and the standard gap. Items are
+ * usually [androidx.compose.material3.SegmentedListItem]s using the shapes they are given.
+ *
+ * Inline so the builder and the drawing of its items recompose together: otherwise a state read in
+ * the builder (a switch's value) would rebuild the items without drawing them again. For the same
+ * reason, pass the builder as a lambda literal, or only through other inline functions.
  */
 @Composable
-fun SegmentedGroup(modifier: Modifier = Modifier, content: @Composable SegmentedGroupScope.() -> Unit) {
+inline fun SegmentedGroup(modifier: Modifier = Modifier, content: @Composable SegmentedGroupScope.() -> Unit) {
     val scope = SegmentedGroupScope()
     scope.content()
-    val count = scope.items.size
+    SegmentedItems(scope.items, modifier)
+}
+
+@PublishedApi
+@Composable
+internal fun SegmentedItems(items: List<@Composable (ListItemShapes) -> Unit>, modifier: Modifier) {
     Column(
         modifier.padding(horizontal = 16.dp).fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(ListItemDefaults.SegmentedGap),
     ) {
-        scope.items.forEachIndexed { i, item -> item(ListItemDefaults.segmentedShapes(i, count)) }
+        items.forEachIndexed { i, item -> item(ListItemDefaults.segmentedShapes(i, items.size)) }
     }
 }
 

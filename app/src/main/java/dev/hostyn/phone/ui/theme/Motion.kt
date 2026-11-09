@@ -38,6 +38,7 @@ val Emphasized = CubicBezierEasing(0.2f, 0f, 0f, 1f)
 const val DurationShort3 = 150
 const val DurationMedium1 = 250
 const val DurationMedium2 = 300
+const val DurationMedium3 = 350
 const val DurationLong1 = 450
 const val DurationLong2 = 500
 
@@ -75,9 +76,15 @@ fun topLevelEnter(): EnterTransition =
 
 fun topLevelExit(): ExitTransition = fadeOut(tween(90, easing = LinearEasing))
 
+/**
+ * Container transforms run at medium speed: M3 suggests up to 500ms, but this is a utility app and
+ * opening a contact should feel immediate.
+ */
+private const val TransformDuration = DurationMedium3
+
 /** While a container transform runs, the screens underneath only fade. */
-fun transformEnter(): EnterTransition = fadeIn(tween(DurationLong2, easing = LinearEasing))
-fun transformExit(): ExitTransition = fadeOut(tween(DurationLong2, easing = LinearEasing))
+fun transformEnter(): EnterTransition = fadeIn(tween(TransformDuration, easing = LinearEasing))
+fun transformExit(): ExitTransition = fadeOut(tween(TransformDuration, easing = LinearEasing))
 
 // --- Container transform ---
 
@@ -113,9 +120,9 @@ fun Modifier.containerTransform(key: String?, shape: Shape = RectangleShape): Mo
             rememberSharedContentState(key),
             animatedVisibilityScope = scope,
             // Contents fade through, overlapping a little so the container never looks empty.
-            enter = fadeIn(tween(DurationMedium1, delayMillis = 50, easing = LinearEasing)),
-            exit = fadeOut(tween(DurationShort3, easing = LinearEasing)),
-            boundsTransform = { _, _ -> tween(DurationLong2, easing = Emphasized) },
+            enter = fadeIn(tween(200, delayMillis = 35, easing = LinearEasing)),
+            exit = fadeOut(tween(100, easing = LinearEasing)),
+            boundsTransform = { _, _ -> tween(TransformDuration, easing = Emphasized) },
             // The growing container lays its contents out at its current size, so the new screen
             // unfolds from the top (app bar, header…) as it grows out of the element.
             resizeMode = SharedTransitionScope.ResizeMode.RemeasureToBounds,
