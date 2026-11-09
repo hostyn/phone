@@ -15,6 +15,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
@@ -45,11 +46,12 @@ fun ContactAvatar(
     seed: Long,
     modifier: Modifier = Modifier,
     size: Dp = 44.dp,
+    shape: Shape = CircleShape,
 ) {
     val (bg, fg) = avatarColors(seed)
     val placeholder = @Composable {
         Box(
-            Modifier.size(size).clip(CircleShape).background(bg),
+            Modifier.size(size).clip(shape).background(bg),
             contentAlignment = Alignment.Center,
         ) {
             val initial = initialOf(name)
@@ -73,7 +75,7 @@ fun ContactAvatar(
                 model = photoUri,
                 contentDescription = null,
                 contentScale = ContentScale.Crop,
-                modifier = Modifier.size(size).clip(CircleShape),
+                modifier = Modifier.size(size).clip(shape),
                 loading = { placeholder() },
                 error = { placeholder() },
             )

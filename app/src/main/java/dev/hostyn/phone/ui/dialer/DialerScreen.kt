@@ -1,3 +1,5 @@
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
+
 package dev.hostyn.phone.ui.dialer
 
 import dev.hostyn.phone.ui.components.callVoicemail
@@ -63,7 +65,9 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
-import dev.hostyn.phone.call.AnswerGreen
+import dev.hostyn.phone.ui.theme.callGreen
+import androidx.compose.material3.FilledIconButton
+import androidx.compose.material3.IconButtonDefaults
 import dev.hostyn.phone.data.ContactSummary
 import dev.hostyn.phone.data.ContactsRepository
 import dev.hostyn.phone.data.formatPhone
@@ -249,17 +253,16 @@ fun DialerScreen(
 
             Spacer(Modifier.height(16.dp))
             Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-                Surface(
+                val green = callGreen()
+                FilledIconButton(
                     onClick = {
                         if (number.isBlank()) number = lastOutgoingNumber(context) else call(number)
                     },
-                    shape = CircleShape,
-                    color = AnswerGreen,
-                    contentColor = Color.White,
-                    shadowElevation = 2.dp,
-                    modifier = Modifier.size(width = 112.dp, height = 68.dp),
+                    shapes = IconButtonDefaults.shapes(IconButtonDefaults.largeRoundShape, IconButtonDefaults.largePressedShape),
+                    colors = IconButtonDefaults.filledIconButtonColors(containerColor = green.color, contentColor = green.onColor),
+                    modifier = Modifier.size(IconButtonDefaults.largeContainerSize(IconButtonDefaults.IconButtonWidthOption.Wide)),
                 ) {
-                    Box(contentAlignment = Alignment.Center) { Icon(Icons.Rounded.Call, stringResource(R.string.call), modifier = Modifier.size(30.dp)) }
+                    Icon(Icons.Rounded.Call, stringResource(R.string.call), modifier = Modifier.size(IconButtonDefaults.largeIconSize))
                 }
             }
         }

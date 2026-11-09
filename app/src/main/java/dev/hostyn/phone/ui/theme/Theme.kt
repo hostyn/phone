@@ -3,10 +3,15 @@ package dev.hostyn.phone.ui.theme
 import android.content.Context
 import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ColorScheme
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.MaterialExpressiveTheme
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Shapes
+import androidx.compose.material3.MotionScheme
+import androidx.compose.runtime.Immutable
+import androidx.compose.runtime.remember
+import androidx.compose.ui.graphics.luminance
+import com.google.android.material.color.MaterialColors
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.dynamicDarkColorScheme
 import androidx.compose.material3.dynamicLightColorScheme
@@ -14,7 +19,6 @@ import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.unit.dp
 import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
 import androidx.activity.enableEdgeToEdge
@@ -80,14 +84,6 @@ private val DarkColors = darkColorScheme(
     surfaceContainerHighest = Color(0xFF33353A),
 )
 
-private val AppShapes = Shapes(
-    extraSmall = RoundedCornerShape(6.dp),
-    small = RoundedCornerShape(10.dp),
-    medium = RoundedCornerShape(16.dp),
-    large = RoundedCornerShape(24.dp),
-    extraLarge = RoundedCornerShape(32.dp),
-)
-
 /** App color scheme (Material You when available). Also used outside Compose. */
 fun appColorScheme(context: Context, dark: Boolean, dynamic: Boolean = true): ColorScheme = when {
     dynamic && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S ->
@@ -107,6 +103,7 @@ fun appInDarkTheme(): Boolean {
     }
 }
 
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun PhoneTheme(content: @Composable () -> Unit) {
     val context = LocalContext.current
@@ -123,5 +120,26 @@ fun PhoneTheme(content: @Composable () -> Unit) {
         )
         onDispose {}
     }
-    MaterialTheme(colorScheme = colors, shapes = AppShapes, content = content)
+    // M3 Expressive: the expressive motion scheme (springs) and Material's own shape and type scales.
+    MaterialExpressiveTheme(colorScheme = colors, motionScheme = MotionScheme.expressive(), content = content)
+}
+
+/** An M3 custom color role: the color, its container, and the colors that go on them. */
+@Immutable
+data class CustomColor(val color: Color, val onColor: Color, val container: Color, val onContainer: Color)
+
+/**
+ * Green for answering and placing calls. M3 has no green role, so it is a custom color harmonized
+ * with the scheme's primary (shifted slightly towards it) and given its own tones, as the M3 color
+ * guidelines describe.
+ */
+@Composable
+fun callGreen(): CustomColor {
+    val scheme = MaterialTheme.colorScheme
+    val light = scheme.surface.luminance() > 0.5f
+    return remember(scheme.primary, light) {
+        val seed = MaterialColors.harmonize(0xFF1E8E3E.toInt(), scheme.primary.toArgb())
+        val roles = MaterialColors.getColorRoles(seed, light)
+        CustomColor(Color(roles.accent), Color(roles.onAccent), Color(roles.accentContainer), Color(roles.onAccentContainer))
+    }
 }
