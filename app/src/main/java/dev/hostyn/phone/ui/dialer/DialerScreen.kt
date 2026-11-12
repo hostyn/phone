@@ -60,7 +60,16 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.layout.boundsInRoot
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.platform.LocalTextToolbar
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -128,6 +137,19 @@ private class DialTones(context: Context) {
     fun release() = generator?.release()
 }
 
+/**
+ * What can be dialed from pasted text: "Tel: +34 600-12 34 56" → "+34600123456".
+ * Letters are dropped, not turned into keypad digits: a pasted sentence isn't a vanity number.
+ */
+internal fun dialable(text: String): String {
+    val out = StringBuilder()
+    for (c in text) when (c) {
+        in '0'..'9', '*', '#', ',', ';' -> out.append(c)
+        '+' -> if (out.isEmpty()) out.append(c)
+    }
+    return out.toString()
+}
+
 private fun lastOutgoingNumber(context: Context): String =
     if (ContextCompat.checkSelfPermission(context, Manifest.permission.READ_CALL_LOG) == PackageManager.PERMISSION_GRANTED) {
         try { CallLog.Calls.getLastOutgoingCall(context).orEmpty() } catch (_: Exception) { "" }
@@ -171,7 +193,11 @@ fun DialerScreen(
     }
 
     val tones = remember { DialTones(context) }
-    DisposableEffect(Unit) { onDispose { tones.release() } }
+    val clipboard = LocalClipboardManager.current
+    val toolbar = LocalTextToolbar.current
+    val haptics = LocalHapticFeedback.current
+    var numberBounds by remember { mutableStateOf(Rect.Zero) }
+    DisposableEffect(Unit) { onDispose { tones.release(); toolbar.hide() } }
 
     val display = formatPhone(context, number)
     val numberStyle = when {
@@ -202,14 +228,40 @@ fun DialerScreen(
                 modifier = Modifier.fillMaxWidth().height(76.dp).padding(horizontal = 8.dp),
             ) {
                 Spacer(Modifier.width(48.dp))
-                Text(
-                    display,
-                    style = numberStyle,
-                    textAlign = TextAlign.Center,
-                    maxLines = 1,
-                    overflow = TextOverflow.Clip,
-                    modifier = Modifier.weight(1f),
-                )
+                // Long press: the system's copy / paste menu, as in a text field.
+                Box(
+                    contentAlignment = Alignment.Center,
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxHeight()
+                        .onGloballyPositioned { numberBounds = it.boundsInRoot() }
+                        .combinedClickable(
+                            interactionSource = null,
+                            indication = null,
+                            onClick = { toolbar.hide() },
+                            onLongClick = {
+                                haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                                val pasted = clipboard.getText()?.text?.let(::dialable).orEmpty()
+                                toolbar.showMenu(
+                                    rect = numberBounds,
+                                    onCopyRequested = if (number.isEmpty()) null else {
+                                        { clipboard.setText(AnnotatedString(number)); toolbar.hide() }
+                                    },
+                                    onPasteRequested = if (pasted.isEmpty()) null else {
+                                        { number = pasted; toolbar.hide() }
+                                    },
+                                )
+                            },
+                        ),
+                ) {
+                    Text(
+                        display,
+                        style = numberStyle,
+                        textAlign = TextAlign.Center,
+                        maxLines = 1,
+                        overflow = TextOverflow.Clip,
+                    )
+                }
                 Box(Modifier.size(48.dp), contentAlignment = Alignment.Center) {
                     androidx.compose.animation.AnimatedVisibility(visible = number.isNotEmpty(), enter = fadeIn(), exit = fadeOut()) {
                         Box(
@@ -241,6 +293,7 @@ fun DialerScreen(
 
             Dialpad(
                 onKeyDown = { c ->
+                    toolbar.hide()
                     tones.play(c)
                     number += c
                 },
