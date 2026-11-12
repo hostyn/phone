@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Themed icon: phone handset with two sound waves behind. -->
+    <path
+        android:fillColor="#FF000000"
+        android:fillType="evenOdd"
+        android:pathData="M64.5,54 h3 c0,-7.46 -6.04,-13.5 -13.5,-13.5 v3 c5.8,0 10.5,4.7 10.5,10.5 zM58.5,54 h3 c0,-4.14 -3.36,-7.5 -7.5,-7.5 v3 c2.49,0 4.5,2.01 4.5,4.5 z" />
+    <path
+        android:fillColor="#FF000000"
+        android:fillType="evenOdd"
+        android:pathData="M66.02,59.07 c-1.84,0 -3.63,-0.3 -5.29,-0.84 -0.52,-0.18 -1.11,-0.04 -1.52,0.36 l-2.35,2.96 c-4.25,-2.03 -8.22,-5.85 -10.33,-10.25 l2.92,-2.49 c0.41,-0.42 0.52,-1.01 0.36,-1.53 -0.55,-1.67 -0.84,-3.45 -0.84,-5.29 0,-0.81 -0.68,-1.48 -1.48,-1.48 H42.28 C41.48,40.5 40.5,40.86 40.5,41.98 40.5,55.92 52.09,67.5 66.02,67.5 c1.06,0 1.48,-0.95 1.48,-1.77 v-5.18 c0,-0.81 -0.68,-1.48 -1.48,-1.48 z" />
+</vector>

@@ -4,14 +4,13 @@
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
-    <!-- Phone handset (Material "call" icon) centered in the 66dp safe zone -->
-    <group
-        android:scaleX="1.75"
-        android:scaleY="1.75"
-        android:translateX="33"
-        android:translateY="33">
-        <path
-            android:fillColor="#FF2B5BB5"
-            android:pathData="M20.01,15.38c-1.23,0 -2.42,-0.2 -3.53,-0.56 -0.35,-0.12 -0.74,-0.03 -1.01,0.24l-1.57,1.97c-2.83,-1.35 -5.48,-3.9 -6.89,-6.83l1.95,-1.66c0.27,-0.28 0.35,-0.67 0.24,-1.02 -0.37,-1.11 -0.56,-2.3 -0.56,-3.53 0,-0.54 -0.45,-0.99 -0.99,-0.99H4.19C3.65,3 3,3.24 3,3.99 3,13.28 10.73,21 20.01,21c0.71,0 0.99,-0.63 0.99,-1.18v-3.45c0,-0.54 -0.45,-0.99 -0.99,-0.99z" />
-    </group>
+    <!-- Phone handset with two sound waves behind, in two tones. -->
+    <path
+        android:fillColor="#FF4FB873"
+        android:fillType="evenOdd"
+        android:pathData="M64.5,54 h3 c0,-7.46 -6.04,-13.5 -13.5,-13.5 v3 c5.8,0 10.5,4.7 10.5,10.5 zM58.5,54 h3 c0,-4.14 -3.36,-7.5 -7.5,-7.5 v3 c2.49,0 4.5,2.01 4.5,4.5 z" />
+    <path
+        android:fillColor="#FF1D6B3B"
+        android:fillType="evenOdd"
+        android:pathData="M66.02,59.07 c-1.84,0 -3.63,-0.3 -5.29,-0.84 -0.52,-0.18 -1.11,-0.04 -1.52,0.36 l-2.35,2.96 c-4.25,-2.03 -8.22,-5.85 -10.33,-10.25 l2.92,-2.49 c0.41,-0.42 0.52,-1.01 0.36,-1.53 -0.55,-1.67 -0.84,-3.45 -0.84,-5.29 0,-0.81 -0.68,-1.48 -1.48,-1.48 H42.28 C41.48,40.5 40.5,40.86 40.5,41.98 40.5,55.92 52.09,67.5 66.02,67.5 c1.06,0 1.48,-0.95 1.48,-1.77 v-5.18 c0,-0.81 -0.68,-1.48 -1.48,-1.48 z" />
 </vector>
