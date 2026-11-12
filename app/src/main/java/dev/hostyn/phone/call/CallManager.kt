@@ -188,7 +188,7 @@ object CallManager {
             number = if (conference) "" else number,
             name = if (conference) ctx?.getString(R.string.conference).orEmpty() else name,
             label = if (conference) participants.joinToString(", ").ifBlank { null } else label,
-            photoUri = info?.photoUri,
+            photoUri = info?.largePhotoUri,
             contactId = info?.contactId,
             connectTime = d.connectTimeMillis,
             canHold = d.can(Call.Details.CAPABILITY_SUPPORT_HOLD) || d.can(Call.Details.CAPABILITY_HOLD),

@@ -17,9 +17,12 @@ import java.util.Locale
 data class CallerInfo(
     val contactId: Long,
     val name: String,
+    /** Thumbnail (about 96 px), for lists. */
     val photoUri: String?,
     val type: Int,
     val label: String?,
+    /** Full-size photo when the contact has one, else the thumbnail: for the call screen. */
+    val largePhotoUri: String? = photoUri,
 )
 
 fun ContentResolver.lookupNumber(number: String): CallerInfo? {
@@ -28,10 +31,10 @@ fun ContentResolver.lookupNumber(number: String): CallerInfo? {
     return try {
         query(
             uri,
-            arrayOf(PhoneLookup._ID, PhoneLookup.DISPLAY_NAME, PhoneLookup.PHOTO_THUMBNAIL_URI, PhoneLookup.TYPE, PhoneLookup.LABEL),
+            arrayOf(PhoneLookup._ID, PhoneLookup.DISPLAY_NAME, PhoneLookup.PHOTO_THUMBNAIL_URI, PhoneLookup.TYPE, PhoneLookup.LABEL, PhoneLookup.PHOTO_URI),
             null, null, null,
         )?.use { c ->
-            if (c.moveToFirst()) CallerInfo(c.getLong(0), c.getString(1) ?: number, c.getString(2), c.getInt(3), c.getString(4))
+            if (c.moveToFirst()) CallerInfo(c.getLong(0), c.getString(1) ?: number, c.getString(2), c.getInt(3), c.getString(4), c.getString(5) ?: c.getString(2))
             else null
         }
     } catch (e: Exception) {
