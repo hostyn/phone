@@ -358,7 +358,19 @@ class ContactsRepository(private val context: Context) {
         } catch (_: SecurityException) {
             emptyList()
         }
-        return listOf(ContactAccount.Local) + synced
+        // Android may not list another app's account to us; the accounts that already hold contacts count too.
+        val withContacts = linkedSetOf<ContactAccount>()
+        resolver.query(
+            RawContacts.CONTENT_URI,
+            arrayOf(RawContacts.ACCOUNT_NAME, RawContacts.ACCOUNT_TYPE),
+            "${RawContacts.DELETED} = 0 AND ${RawContacts.ACCOUNT_TYPE} IS NOT NULL", null, null,
+        )?.use { c ->
+            while (c.moveToNext()) {
+                val a = ContactAccount(c.getString(0), c.getString(1))
+                if (a.name != null && a.type in types) withContacts += a
+            }
+        }
+        return listOf(ContactAccount.Local) + (synced + withContacts).distinct()
     }
 
     /** The accounts shown in the app, which are also the ones new contacts can be saved to. */

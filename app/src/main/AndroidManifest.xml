@@ -25,6 +25,14 @@
         <package android:name="org.telegram.messenger" />
         <package android:name="org.telegram.messenger.web" />
         <package android:name="org.thoughtcrime.securesms" />
+        <!-- Apps with contacts accounts (Atlas, Google…): their contacts description says whether
+             their contacts can be edited, and their account label and icon name them. -->
+        <intent>
+            <action android:name="android.content.SyncAdapter" />
+        </intent>
+        <intent>
+            <action android:name="android.accounts.AccountAuthenticator" />
+        </intent>
     </queries>
 
     <application
