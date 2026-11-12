@@ -12,6 +12,12 @@ import android.content.ContentResolver
 import android.content.ContentUris
 import android.content.ContentValues
 import android.content.Context
+import android.content.Intent
+import android.content.pm.PackageManager
+import android.content.res.Resources
+import android.content.res.XmlResourceParser
+import android.os.SystemClock
+import org.xmlpull.v1.XmlPullParser
 import android.database.ContentObserver
 import android.net.Uri
 import android.os.Handler
@@ -67,7 +73,10 @@ class ContactsRepository(private val context: Context) {
 
     /** Emits when contacts change or when the name order settings change. */
     private fun contactChanges(): Flow<Unit> =
-        combine(changes(Contacts.CONTENT_URI), snapshotFlow { settings.sortOrder to settings.nameFormat }) { _, _ -> }
+        combine(
+            changes(Contacts.CONTENT_URI),
+            snapshotFlow { Triple(settings.sortOrder, settings.nameFormat, settings.hiddenAccounts) },
+        ) { _, _ -> }
 
     private val nameColumn get() =
         if (settings.nameFormat == NameOrder.FamilyFirst) Contacts.DISPLAY_NAME_ALTERNATIVE else Contacts.DISPLAY_NAME_PRIMARY
@@ -90,13 +99,15 @@ class ContactsRepository(private val context: Context) {
     suspend fun getContact(id: Long): ContactDetail? = withContext(Dispatchers.IO) { queryContact(id) }
 
     private fun queryContacts(): List<ContactSummary> {
+        val hidden = hiddenData()
         val numbers = HashMap<Long, MutableList<String>>()
         resolver.query(
             Phone.CONTENT_URI,
-            arrayOf(Phone.CONTACT_ID, Phone.NUMBER),
+            arrayOf(Phone.CONTACT_ID, Phone.NUMBER, Phone.RAW_CONTACT_ID),
             null, null, null,
         )?.use { c ->
             while (c.moveToNext()) {
+                if (hidden != null && c.getLong(2) in hidden.rawContacts) continue
                 val number = c.getString(1)
                 if (number != null) numbers.getOrPut(c.getLong(0)) { mutableListOf() }.add(number)
             }
@@ -112,6 +123,7 @@ class ContactsRepository(private val context: Context) {
         )?.use { c ->
             while (c.moveToNext()) {
                 val id = c.getLong(0)
+                if (hidden != null && id in hidden.contacts) continue
                 result += ContactSummary(
                     id = id,
                     name = c.getString(1),
@@ -187,9 +199,29 @@ class ContactsRepository(private val context: Context) {
             }
         }
 
+        // Leave out what comes from hidden accounts, unless that is all the contact has.
+        val accounts = rawContactAccounts(id)
+        val editable = editableAccountTypes()
+        // A raw contact of an account the user edits, not a chat app's link to the contact.
+        fun isOwner(rawId: Long) = accounts[rawId]?.let { it.isLocal || it.type in editable } == true
+        val hiddenKeys = settings.hiddenAccounts
+        if (hiddenKeys.isNotEmpty()) {
+            val shown = rows.filter { accounts[it.rawId]?.key !in hiddenKeys }
+            if (shown.any { isOwner(it.rawId) } && shown.size < rows.size) {
+                rows.retainAll(shown.toSet())
+                if (accounts[nameRawId]?.key in hiddenKeys) nameRawId = -1
+            }
+        }
+
         val rawIds = linkedSetOf<Long>()
         rows.forEach { rawIds += it.rawId }
-        if (nameRawId <= 0) nameRawId = rawIds.firstOrNull() ?: return null
+        if (nameRawId <= 0) {
+            val owners = rawIds.filter(::isOwner)
+            nameRawId = owners.firstOrNull { raw -> rows.any { it.rawId == raw && it.mime == StructuredName.CONTENT_ITEM_TYPE } }
+                ?: owners.firstOrNull() ?: rawIds.firstOrNull() ?: return null
+            rows.firstOrNull { it.rawId == nameRawId && it.mime == StructuredName.CONTENT_ITEM_TYPE }
+                ?.d(1)?.takeIf { it.isNotBlank() }?.let { displayName = it }
+        }
         // Single-value fields come from the raw contact that names the contact, if it has them.
         val ordered = rows.sortedBy { if (it.rawId == nameRawId) 0 else 1 }
 
@@ -288,7 +320,7 @@ class ContactsRepository(private val context: Context) {
             starred = starred,
             ringtone = ringtone,
             sendToVoicemail = toVoicemail,
-            account = accountOf(nameRawId),
+            account = accounts[nameRawId] ?: accountOf(nameRawId),
             data = draft,
             groupTitles = groupTitles(groups),
         )
@@ -314,18 +346,139 @@ class ContactsRepository(private val context: Context) {
 
     // --- Accounts and labels ---
 
-    /** Accounts new contacts can be saved to: the device plus synced accounts that accept contacts. */
+    /**
+     * Accounts that hold contacts the user can edit: the device plus synced accounts such as
+     * Google or Atlas. Chat apps (WhatsApp, Signal, Telegram…) also have contacts accounts, but
+     * only to link their buttons to existing contacts: they are left out.
+     */
     fun writableAccounts(): List<ContactAccount> {
-        val types = ContentResolver.getSyncAdapterTypes()
-            .filter { it.authority == ContactsContract.AUTHORITY && it.supportsUploading() }
-            .map { it.accountType }
-            .toSet()
+        val types = editableAccountTypes()
         val synced = try {
             AccountManager.get(context).accounts.filter { it.type in types }.map { ContactAccount(it.name, it.type) }
         } catch (_: SecurityException) {
             emptyList()
         }
         return listOf(ContactAccount.Local) + synced
+    }
+
+    /** The accounts shown in the app, which are also the ones new contacts can be saved to. */
+    fun shownAccounts(): List<ContactAccount> =
+        writableAccounts().filter { it.key !in settings.hiddenAccounts }.ifEmpty { listOf(ContactAccount.Local) }
+
+    /** Where a new contact goes unless the user picks another account: the default from Settings, or the first synced one. */
+    fun defaultAccount(accounts: List<ContactAccount>): ContactAccount =
+        accounts.firstOrNull { it.key == settings.defaultAccount }
+            ?: accounts.firstOrNull { !it.isLocal }
+            ?: accounts.firstOrNull()
+            ?: ContactAccount.Local
+
+    /** How many contacts each account holds, by [ContactAccount.key]. */
+    suspend fun accountContactCounts(): Map<String, Int> = withContext(Dispatchers.IO) {
+        val counts = HashMap<String, Int>()
+        resolver.query(
+            RawContacts.CONTENT_URI,
+            arrayOf(RawContacts.ACCOUNT_NAME, RawContacts.ACCOUNT_TYPE),
+            "${RawContacts.DELETED} = 0", null, null,
+        )?.use { c ->
+            while (c.moveToNext()) {
+                val key = ContactAccount(c.getString(0), c.getString(1)).key
+                counts[key] = (counts[key] ?: 0) + 1
+            }
+        }
+        counts
+    }
+
+    private fun rawContactAccounts(contactId: Long): Map<Long, ContactAccount> {
+        val out = HashMap<Long, ContactAccount>()
+        resolver.query(
+            RawContacts.CONTENT_URI,
+            arrayOf(RawContacts._ID, RawContacts.ACCOUNT_NAME, RawContacts.ACCOUNT_TYPE),
+            "${RawContacts.CONTACT_ID} = ? AND ${RawContacts.DELETED} = 0", arrayOf(contactId.toString()), null,
+        )?.use { c -> while (c.moveToNext()) out[c.getLong(0)] = ContactAccount(c.getString(1), c.getString(2)) }
+        return out
+    }
+
+    /** Raw contacts in hidden accounts, and the contacts that only have those (plus chat app links). */
+    private class Hidden(val rawContacts: Set<Long>, val contacts: Set<Long>)
+
+    private fun hiddenData(): Hidden? {
+        val hiddenKeys = settings.hiddenAccounts
+        if (hiddenKeys.isEmpty()) return null
+        val editable = editableAccountTypes()
+        val raws = HashSet<Long>()
+        val hasShownAccount = HashMap<Long, Boolean>()
+        resolver.query(
+            RawContacts.CONTENT_URI,
+            arrayOf(RawContacts._ID, RawContacts.CONTACT_ID, RawContacts.ACCOUNT_NAME, RawContacts.ACCOUNT_TYPE),
+            "${RawContacts.DELETED} = 0", null, null,
+        )?.use { c ->
+            while (c.moveToNext()) {
+                val account = ContactAccount(c.getString(2), c.getString(3))
+                if (!account.isLocal && account.type !in editable) continue
+                val shown = account.key !in hiddenKeys
+                if (!shown) raws += c.getLong(0)
+                val contact = c.getLong(1)
+                hasShownAccount[contact] = hasShownAccount[contact] == true || shown
+            }
+        }
+        return Hidden(raws, hasShownAccount.filterValues { !it }.keys)
+    }
+
+    @Volatile private var editableTypes: Pair<Long, Set<String>>? = null
+
+    /**
+     * Account types with editable contacts. As in Android's own Contacts app: Google and Exchange,
+     * and sync adapters whose contacts structure (`android.provider.CONTACTS_STRUCTURE`) has an
+     * EditSchema. Chat apps only declare how to show their links, so they don't count.
+     */
+    private fun editableAccountTypes(): Set<String> {
+        editableTypes?.let { (time, types) -> if (SystemClock.elapsedRealtime() - time < 60_000) return types }
+        val contactTypes = ContentResolver.getSyncAdapterTypes()
+            .filter { it.authority == ContactsContract.AUTHORITY && it.supportsUploading() }
+            .map { it.accountType }
+            .toSet()
+        val types = contactTypes.filterTo(mutableSetOf()) { it in BUILT_IN_EDITABLE }
+        val pm = context.packageManager
+        val services = try {
+            pm.queryIntentServices(Intent("android.content.SyncAdapter"), PackageManager.GET_META_DATA)
+        } catch (_: Exception) {
+            emptyList()
+        }
+        for (info in services) {
+            val service = info.serviceInfo ?: continue
+            try {
+                val res = pm.getResourcesForApplication(service.applicationInfo)
+                val type = service.loadXmlMetaData(pm, "android.content.SyncAdapter")?.use { contactsAccountType(it, res) } ?: continue
+                if (type !in contactTypes || type in types) continue
+                if (service.loadXmlMetaData(pm, "android.provider.CONTACTS_STRUCTURE")?.use { hasEditSchema(it) } == true) types += type
+            } catch (_: Exception) {
+                // A broken or missing description: not editable.
+            }
+        }
+        editableTypes = SystemClock.elapsedRealtime() to types
+        return types
+    }
+
+    /** The account type of a `<sync-adapter>` description for contacts, or null for other authorities. */
+    private fun contactsAccountType(parser: XmlResourceParser, res: Resources): String? {
+        while (parser.next() != XmlPullParser.END_DOCUMENT) {
+            if (parser.eventType != XmlPullParser.START_TAG || parser.name != "sync-adapter") continue
+            if (parser.androidAttribute("contentAuthority", res) != ContactsContract.AUTHORITY) return null
+            return parser.androidAttribute("accountType", res)
+        }
+        return null
+    }
+
+    private fun hasEditSchema(parser: XmlResourceParser): Boolean {
+        while (parser.next() != XmlPullParser.END_DOCUMENT) {
+            if (parser.eventType == XmlPullParser.START_TAG && parser.name == "EditSchema") return true
+        }
+        return false
+    }
+
+    private fun XmlResourceParser.androidAttribute(name: String, res: Resources): String? {
+        val id = getAttributeResourceValue(ANDROID_NS, name, 0)
+        return if (id != 0) res.getString(id) else getAttributeValue(ANDROID_NS, name)
     }
 
     private fun accountSelection(account: ContactAccount, prefix: String = ""): Pair<String, Array<String>> =
@@ -604,5 +757,11 @@ class ContactsRepository(private val context: Context) {
             ?.use { it.readBytes() }
     } catch (_: Exception) {
         null
+    }
+
+    private companion object {
+        const val ANDROID_NS = "http://schemas.android.com/apk/res/android"
+        /** Built into Android's Contacts app rather than described by the sync adapter. */
+        val BUILT_IN_EDITABLE = setOf("com.google", "com.android.exchange", "com.google.android.exchange", "com.google.android.gm.exchange")
     }
 }

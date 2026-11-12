@@ -296,4 +296,13 @@
         <item quantity="many">%d contactos</item>
         <item quantity="other">%d contactos</item>
     </plurals>
+    <string name="accounts_settings">Cuentas</string>
+    <string name="default_account">Guardar contactos nuevos en</string>
+    <string name="accounts_keep_one">Tiene que verse al menos una cuenta</string>
+    <plurals name="account_contacts">
+        <item quantity="one">%d contacto</item>
+        <item quantity="other">%d contactos</item>
+    </plurals>
+    <string name="add_to_contact">Añadir a un contacto</string>
+    <string name="create_new_contact">Crear contacto nuevo</string>
 </resources>

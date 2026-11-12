@@ -41,6 +41,22 @@ class AppSettings(context: Context) {
         private set
     fun updateNameFormat(value: NameOrder) { nameFormat = value; prefs.edit().putString("name_format", value.name).apply() }
 
+    /** Accounts ([ContactAccount.key]) whose contacts the app doesn't show. */
+    var hiddenAccounts by mutableStateOf(prefs.getStringSet("hidden_accounts", null).orEmpty().toSet())
+        private set
+    fun updateAccountShown(account: ContactAccount, shown: Boolean) {
+        hiddenAccounts = if (shown) hiddenAccounts - account.key else hiddenAccounts + account.key
+        prefs.edit().putStringSet("hidden_accounts", hiddenAccounts).apply()
+    }
+
+    /** Account ([ContactAccount.key]) new contacts are saved to; null = the first synced account. */
+    var defaultAccount by mutableStateOf(prefs.getString("default_account", null))
+        private set
+    fun updateDefaultAccount(account: ContactAccount?) {
+        defaultAccount = account?.key
+        prefs.edit().putString("default_account", defaultAccount).apply()
+    }
+
     // --- Keypad (defaults follow the system's own setting) ---
 
     var dialpadTones by mutableStateOf(

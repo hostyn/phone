@@ -72,6 +72,16 @@ import androidx.compose.material3.Switch
 import dev.hostyn.phone.ui.components.rememberInstalledMessagingApps
 import androidx.compose.material.icons.automirrored.rounded.Chat
 import androidx.compose.foundation.Image
+import androidx.compose.material.icons.rounded.Smartphone
+import androidx.compose.material.icons.rounded.PersonAdd
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.core.graphics.drawable.toBitmap
+import dev.hostyn.phone.data.ContactAccount
+import dev.hostyn.phone.ui.components.accountIcon
+import dev.hostyn.phone.ui.components.accountTitle
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBarDefaults
@@ -267,6 +277,45 @@ fun SettingsScreen(
                         title = stringResource(R.string.export_contacts),
                         onClick = { exportPicker.launch("contacts.vcf") },
                     )
+                }
+            }
+
+            // --- Accounts ---
+            item {
+                var accounts by remember { mutableStateOf<List<ContactAccount>>(emptyList()) }
+                var counts by remember { mutableStateOf<Map<String, Int>>(emptyMap()) }
+                LaunchedEffect(Unit) {
+                    accounts = withContext(Dispatchers.IO) { repo.writableAccounts() }
+                    counts = repo.accountContactCounts()
+                }
+                if (accounts.isNotEmpty()) Section(stringResource(R.string.accounts_settings)) {
+                    val shown = accounts.filter { it.key !in settings.hiddenAccounts }
+                    accounts.forEach { account ->
+                        val (name, typeLabel) = accountTitle(context, account)
+                        val count = counts[account.key] ?: 0
+                        val icon = remember(account) { accountIcon(context, account)?.toBitmap(96, 96)?.asImageBitmap() }
+                        toggle(
+                            icon = { if (icon != null) Image(icon, null, modifier = Modifier.size(24.dp)) else Icon(Icons.Rounded.Smartphone, null) },
+                            title = name,
+                            summary = listOfNotNull(typeLabel, pluralStringResource(R.plurals.account_contacts, count, count)).joinToString(" · "),
+                            checked = account.key !in settings.hiddenAccounts,
+                            onChange = { show ->
+                                if (show || shown.size > 1) settings.updateAccountShown(account, show)
+                                else Toast.makeText(context, context.getString(R.string.accounts_keep_one), Toast.LENGTH_SHORT).show()
+                            },
+                        )
+                    }
+                    if (shown.size > 1) {
+                        val default = repo.defaultAccount(shown)
+                        setting(
+                            icon = Icons.Rounded.PersonAdd,
+                            title = stringResource(R.string.default_account),
+                            summary = accountTitle(context, default).first,
+                            onClick = {
+                                choice = choiceOf(R.string.default_account, shown, default, { accountTitle(context, it).first }, settings::updateDefaultAccount)
+                            },
+                        )
+                    }
                 }
             }
 

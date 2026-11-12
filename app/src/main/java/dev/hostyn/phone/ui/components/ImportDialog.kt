@@ -57,8 +57,8 @@ fun ImportDialog(uri: Uri, repo: ContactsRepository, onDone: () -> Unit) {
     var importing by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
-        accounts = withContext(Dispatchers.IO) { repo.writableAccounts() }
-        selected = accounts.firstOrNull { !it.isLocal } ?: ContactAccount.Local
+        accounts = withContext(Dispatchers.IO) { repo.shownAccounts() }
+        selected = repo.defaultAccount(accounts)
     }
 
     AlertDialog(

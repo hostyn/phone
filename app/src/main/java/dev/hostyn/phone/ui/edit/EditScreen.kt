@@ -168,9 +168,8 @@ class EditViewModel(
         viewModelScope.launch {
             if (contactId == null) {
                 draft = ContactDraft(phones = listOf(ContactField(initialPhone.orEmpty(), Phone.TYPE_MOBILE)))
-                accounts = withContext(Dispatchers.IO) { repo.writableAccounts() }
-                // Default to the first synced account, as other contacts apps do.
-                account = accounts.firstOrNull { !it.isLocal } ?: ContactAccount.Local
+                accounts = withContext(Dispatchers.IO) { repo.shownAccounts() }
+                account = repo.defaultAccount(accounts)
             } else {
                 repo.getContact(contactId)?.let { c ->
                     original = c

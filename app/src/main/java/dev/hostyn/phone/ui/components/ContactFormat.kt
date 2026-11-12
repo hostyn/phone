@@ -3,6 +3,7 @@ package dev.hostyn.phone.ui.components
 import android.accounts.AccountManager
 import android.content.Context
 import android.graphics.Bitmap
+import android.graphics.drawable.Drawable
 import android.graphics.BitmapFactory
 import android.graphics.ImageDecoder
 import android.net.Uri
@@ -110,4 +111,16 @@ fun accountTitle(context: Context, account: ContactAccount): Pair<String, String
         null
     }
     return account.name.orEmpty() to (typeLabel ?: account.type)
+}
+
+/** The icon of the app an account belongs to (Atlas, Google…); null for the device. */
+fun accountIcon(context: Context, account: ContactAccount): Drawable? {
+    if (account.isLocal) return null
+    return try {
+        AccountManager.get(context).authenticatorTypes.firstOrNull { it.type == account.type }?.let { d ->
+            context.packageManager.getDrawable(d.packageName, d.iconId, null)
+        }
+    } catch (_: Exception) {
+        null
+    }
 }

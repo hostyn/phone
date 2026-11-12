@@ -295,4 +295,13 @@
         <item quantity="one">%d contact</item>
         <item quantity="other">%d contacts</item>
     </plurals>
+    <string name="accounts_settings">Accounts</string>
+    <string name="default_account">Save new contacts to</string>
+    <string name="accounts_keep_one">At least one account has to be shown</string>
+    <plurals name="account_contacts">
+        <item quantity="one">%d contact</item>
+        <item quantity="other">%d contacts</item>
+    </plurals>
+    <string name="add_to_contact">Add to a contact</string>
+    <string name="create_new_contact">Create new contact</string>
 </resources>

@@ -127,6 +127,9 @@ data class ContactDraft(
 data class ContactAccount(val name: String?, val type: String?) {
     val isLocal get() = name == null && type == null
 
+    /** Identifies the account in the settings. */
+    val key: String get() = if (isLocal) "local" else "$type/$name"
+
     companion object {
         val Local = ContactAccount(null, null)
     }
