@@ -73,6 +73,7 @@
     <string name="answer">Answer</string>
     <string name="mute">Mute</string>
     <string name="speaker">Speaker</string>
+    <string name="speaker_off">Speaker off</string>
     <string name="headset">Headset</string>
     <string name="bluetooth">Bluetooth</string>
     <string name="earpiece">Phone</string>

@@ -33,7 +33,7 @@ class CallService : InCallService() {
             combine(CallManager.calls, CallManager.audio, ::Pair).collect { (calls, audio) -> proximity.update(calls, audio) }
         }
         scope.launch {
-            CallManager.calls.collectLatest { calls ->
+            combine(CallManager.calls, CallManager.audio, ::Pair).collectLatest { (calls, audio) ->
                 // Post the call notification once we know who is calling. Android doesn't apply
                 // updates to a ringing call notification right away (the heads-up kept showing
                 // the number while the name was already known), so the first version must be
@@ -41,7 +41,7 @@ class CallService : InCallService() {
                 // soon as its result arrives, and the timeout keeps a slow lookup from delaying
                 // the call.
                 if (CallManager.primary(calls)?.identifying == true) delay(IDENTIFY_TIMEOUT_MS)
-                updateNotification(calls)
+                updateNotification(calls, audio)
             }
         }
     }
@@ -78,18 +78,22 @@ class CallService : InCallService() {
         if (audioState != null) CallManager.onAudioState(audioState)
     }
 
-    private fun updateNotification(calls: List<CallUi>) {
+    private fun updateNotification(calls: List<CallUi>, audio: CallAudioState?) {
         val call = CallManager.primary(calls)?.takeIf { it.phase != CallPhase.ENDED }
         if (call == null) {
+            CallNotifications.headsUpCallId = null
             removeNotification()
             return
         }
         val photo = CallManager.photoFor(call.id)
-        val key = listOf(call.id, call.phase, call.name, call.label, call.connectTime, photo != null)
+        val key = listOf(
+            call.id, call.phase, call.name, call.label, call.connectTime, photo != null,
+            audio?.route, audio?.supportedRouteMask, CallNotifications.headsUpCallId == call.id,
+        )
         if (key == lastKey) return
         lastKey = key
 
-        val notification = CallNotifications.build(this, call, photo)
+        val notification = CallNotifications.build(this, call, photo, audio)
         if (!foreground) {
             try {
                 ServiceCompat.startForeground(

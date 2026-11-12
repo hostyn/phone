@@ -72,6 +72,7 @@
     <string name="answer">Responder</string>
     <string name="mute">Silenciar</string>
     <string name="speaker">Altavoz</string>
+    <string name="speaker_off">Quitar altavoz</string>
     <string name="headset">Auriculares</string>
     <string name="bluetooth">Bluetooth</string>
     <string name="earpiece">Teléfono</string>
