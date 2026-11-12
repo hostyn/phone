@@ -15,8 +15,8 @@ android {
         applicationId = "dev.hostyn.phone"
         minSdk = 26
         targetSdk = 34
-        versionCode = 4
-        versionName = "1.1.1"
+        versionCode = 5
+        versionName = "1.2.0"
     }
 
     buildTypes {
