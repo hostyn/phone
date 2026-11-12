@@ -120,7 +120,6 @@ import kotlinx.coroutines.launch
 @Composable
 fun InCallRoute(
     onFinish: () -> Unit,
-    onProximity: (Boolean) -> Unit,
     onKeepScreenOn: (Boolean) -> Unit,
 ) {
     val calls by CallManager.calls.collectAsState()
@@ -137,10 +136,6 @@ fun InCallRoute(
     }
     val call = primary ?: lastEnded ?: return
 
-    val route = audio?.route ?: CallAudioState.ROUTE_EARPIECE
-    val nearEar = (call.phase == CallPhase.ACTIVE || call.phase == CallPhase.DIALING) &&
-        (route == CallAudioState.ROUTE_EARPIECE || route == CallAudioState.ROUTE_WIRED_HEADSET)
-    LaunchedEffect(nearEar) { onProximity(nearEar) }
     LaunchedEffect(call.phase) { onKeepScreenOn(call.phase == CallPhase.RINGING) }
 
     val others = calls.filter { it.id != call.id && it.phase != CallPhase.ENDED }

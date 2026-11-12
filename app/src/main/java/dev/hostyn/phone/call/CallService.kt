@@ -11,6 +11,7 @@ import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
 
 /**
@@ -22,11 +23,15 @@ class CallService : InCallService() {
     private val scope = MainScope()
     private var foreground = false
     private var lastKey: Any? = null
+    private val proximity by lazy { ProximityLock(this) }
 
     override fun onCreate() {
         super.onCreate()
         CallManager.attach(this)
         CallNotifications.createChannels(this)
+        scope.launch {
+            combine(CallManager.calls, CallManager.audio, ::Pair).collect { (calls, audio) -> proximity.update(calls, audio) }
+        }
         scope.launch {
             CallManager.calls.collectLatest { calls ->
                 // Post the call notification once we know who is calling. Android doesn't apply
@@ -43,6 +48,7 @@ class CallService : InCallService() {
 
     override fun onDestroy() {
         scope.cancel()
+        proximity.release()
         removeNotification()
         CallManager.detach(this)
         super.onDestroy()
