@@ -56,6 +56,7 @@
     <string name="create_contact">Crear contacto</string>
     <string name="backspace">Borrar</string>
     <string name="add_to_contacts">Añadir a contactos</string>
+    <string name="paste_copied_number">Pegar número copiado</string>
     <string name="channel_incoming">Llamadas entrantes</string>
     <string name="channel_ongoing">Llamadas en curso</string>
     <string name="incoming_call">Llamada entrante</string>

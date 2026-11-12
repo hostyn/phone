@@ -68,6 +68,13 @@ import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalTextToolbar
+import androidx.compose.ui.platform.LocalWindowInfo
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.material.icons.rounded.ContentPaste
+import android.content.ClipDescription
+import android.content.ClipboardManager
+import android.os.Build
+import android.view.textclassifier.TextClassifier
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.ui.text.style.TextAlign
@@ -150,6 +157,22 @@ internal fun dialable(text: String): String {
     return out.toString()
 }
 
+/** A copied number is offered for this long after it was copied. */
+private const val COPIED_NUMBER_MAX_AGE_MS = 60 * 60 * 1000L
+
+/**
+ * Whether the clipboard holds a recently copied phone number. Only the clip's description is
+ * read, which Android classifies itself (Android 12+): reading the clip would show the
+ * "pasted from your clipboard" notice every time the dialpad opens.
+ */
+private fun ClipboardManager.hasCopiedNumber(): Boolean {
+    if (Build.VERSION.SDK_INT < 31) return false
+    val clip = try { primaryClipDescription } catch (_: Exception) { null } ?: return false
+    if (System.currentTimeMillis() - clip.timestamp > COPIED_NUMBER_MAX_AGE_MS) return false
+    return clip.classificationStatus == ClipDescription.CLASSIFICATION_COMPLETE &&
+        clip.getConfidenceScore(TextClassifier.TYPE_PHONE) >= 0.5f
+}
+
 private fun lastOutgoingNumber(context: Context): String =
     if (ContextCompat.checkSelfPermission(context, Manifest.permission.READ_CALL_LOG) == PackageManager.PERMISSION_GRANTED) {
         try { CallLog.Calls.getLastOutgoingCall(context).orEmpty() } catch (_: Exception) { "" }
@@ -197,6 +220,18 @@ fun DialerScreen(
     val toolbar = LocalTextToolbar.current
     val haptics = LocalHapticFeedback.current
     var numberBounds by remember { mutableStateOf(Rect.Zero) }
+
+    // Offer to paste a copied number. Checked when the window gets focus (Android only lets the
+    // focused app look at the clipboard) and whenever the clipboard changes.
+    val clipboardManager = remember { context.getSystemService(ClipboardManager::class.java) }
+    val windowFocused = LocalWindowInfo.current.isWindowFocused
+    var copiedNumber by remember { mutableStateOf(false) }
+    LaunchedEffect(windowFocused) { if (windowFocused) copiedNumber = clipboardManager.hasCopiedNumber() }
+    DisposableEffect(clipboardManager) {
+        val listener = ClipboardManager.OnPrimaryClipChangedListener { copiedNumber = clipboardManager.hasCopiedNumber() }
+        clipboardManager.addPrimaryClipChangedListener(listener)
+        onDispose { clipboardManager.removePrimaryClipChangedListener(listener) }
+    }
     DisposableEffect(Unit) { onDispose { tones.release(); toolbar.hide() } }
 
     val display = formatPhone(context, number)
@@ -282,6 +317,19 @@ fun DialerScreen(
             }
 
             Box(Modifier.fillMaxWidth().height(44.dp), contentAlignment = Alignment.Center) {
+                androidx.compose.animation.AnimatedVisibility(visible = number.isEmpty() && copiedNumber, enter = fadeIn(), exit = fadeOut()) {
+                    TextButton(
+                        onClick = {
+                            val pasted = clipboard.getText()?.text?.let(::dialable).orEmpty()
+                            if (pasted.isNotEmpty()) number = pasted else copiedNumber = false
+                        },
+                        shapes = ButtonDefaults.shapes(),
+                    ) {
+                        Icon(Icons.Rounded.ContentPaste, null, modifier = Modifier.size(ButtonDefaults.IconSize))
+                        Spacer(Modifier.width(ButtonDefaults.IconSpacing))
+                        Text(stringResource(R.string.paste_copied_number))
+                    }
+                }
                 androidx.compose.animation.AnimatedVisibility(visible = number.isNotEmpty() && !known, enter = fadeIn(), exit = fadeOut()) {
                     TextButton(onClick = { onAddContact(number) }, shapes = ButtonDefaults.shapes()) {
                         Icon(Icons.Rounded.PersonAdd, null, modifier = Modifier.size(ButtonDefaults.IconSize))

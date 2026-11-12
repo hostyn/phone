@@ -57,6 +57,7 @@
     <string name="create_contact">Create contact</string>
     <string name="backspace">Delete</string>
     <string name="add_to_contacts">Add to contacts</string>
+    <string name="paste_copied_number">Paste copied number</string>
     <string name="channel_incoming">Incoming calls</string>
     <string name="channel_ongoing">Ongoing calls</string>
     <string name="incoming_call">Incoming call</string>
