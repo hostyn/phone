@@ -143,6 +143,8 @@ class EditViewModel(
     private val repo: ContactsRepository,
     private val contactId: Long?,
     initialPhone: String?,
+    /** Data another app asked to save: the new contact's, or what to add to [contactId]. */
+    prefill: ContactDraft? = null,
 ) : ViewModel() {
     var loading by mutableStateOf(contactId != null)
         private set
@@ -167,7 +169,8 @@ class EditViewModel(
     init {
         viewModelScope.launch {
             if (contactId == null) {
-                draft = ContactDraft(phones = listOf(ContactField(initialPhone.orEmpty(), Phone.TYPE_MOBILE)))
+                draft = prefill?.let { if (it.phones.isEmpty()) it.copy(phones = listOf(ContactField("", Phone.TYPE_MOBILE))) else it }
+                    ?: ContactDraft(phones = listOf(ContactField(initialPhone.orEmpty(), Phone.TYPE_MOBILE)))
                 accounts = withContext(Dispatchers.IO) { repo.shownAccounts() }
                 account = repo.defaultAccount(accounts)
             } else {
@@ -187,6 +190,8 @@ class EditViewModel(
                 if (draft.phones.isEmpty()) draft = draft.copy(phones = listOf(ContactField("", Phone.TYPE_MOBILE)))
             }
             initial = draft
+            // Adding to an existing contact: what's new counts as a change to save.
+            if (contactId != null && prefill != null) draft = draft.withAdded(prefill)
             loadGroups()
             loading = false
         }
@@ -261,6 +266,21 @@ class EditViewModel(
     }
 }
 
+/** This contact plus the phones, emails and other data of [extra] it doesn't have yet. */
+private fun ContactDraft.withAdded(extra: ContactDraft): ContactDraft {
+    fun List<ContactField>.plusNew(more: List<ContactField>, key: (String) -> String) =
+        this.filterNot { it.isBlank } + more.filter { m -> !m.isBlank && none { key(it.value) == key(m.value) } }
+    return copy(
+        name = if (name.isBlank) extra.name else name,
+        organization = if (organization.isBlank) extra.organization else organization,
+        phones = phones.plusNew(extra.phones) { android.telephony.PhoneNumberUtils.normalizeNumber(it) },
+        emails = emails.plusNew(extra.emails) { it.trim().lowercase() },
+        addresses = addresses + extra.addresses.filterNot { a -> addresses.any { it.display() == a.display() } },
+        websites = websites.plusNew(extra.websites) { it.trim() },
+        note = if (note.isBlank) extra.note else note,
+    )
+}
+
 /** Birthday for the first date, then anniversary, then other. */
 private fun nextEventType(events: List<ContactField>) = when {
     events.none { it.type == Event.TYPE_BIRTHDAY } -> Event.TYPE_BIRTHDAY
@@ -277,10 +297,13 @@ fun EditScreen(
     repo: ContactsRepository,
     contactId: Long?,
     initialPhone: String? = null,
+    prefill: ContactDraft? = null,
     onClose: () -> Unit,
     onCreated: (Long) -> Unit,
+    /** When set, called with the contact's id after saving (new or edited) instead of [onCreated] / [onClose]. */
+    onSaved: ((Long) -> Unit)? = null,
 ) {
-    val vm = viewModel(key = "edit_${contactId}_$initialPhone") { EditViewModel(repo, contactId, initialPhone) }
+    val vm = viewModel(key = "edit_${contactId}_${initialPhone}_${prefill.hashCode()}") { EditViewModel(repo, contactId, initialPhone, prefill) }
     val context = LocalContext.current
     var confirmDiscard by remember { mutableStateOf(false) }
 
@@ -289,7 +312,13 @@ fun EditScreen(
 
     val saveError = stringResource(R.string.error_save_contact)
     fun save() = vm.save(
-        onDone = { id -> if (vm.isNew && id != null) onCreated(id) else onClose() },
+        onDone = { id ->
+            when {
+                onSaved != null && id != null -> onSaved(id)
+                vm.isNew && id != null -> onCreated(id)
+                else -> onClose()
+            }
+        },
         onError = { Toast.makeText(context, saveError, Toast.LENGTH_SHORT).show() },
     )
 
