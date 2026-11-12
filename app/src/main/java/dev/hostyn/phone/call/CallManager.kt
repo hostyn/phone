@@ -46,6 +46,8 @@ data class CallUi(
     val canMerge: Boolean = false,
     /** Can be rejected with a text message. */
     val canReplyWithText: Boolean = false,
+    /** Still looking up who is calling (the contact's name and photo aren't known yet). */
+    val identifying: Boolean = false,
 )
 
 /**
@@ -58,6 +60,7 @@ object CallManager {
     private class Entry(val id: Int, val outgoing: Boolean) {
         var info: CallerInfo? = null
         var photo: Bitmap? = null
+        var lookedUp = false
     }
 
     private val entries = LinkedHashMap<Call, Entry>()
@@ -100,7 +103,11 @@ object CallManager {
         _lastEnded.value = null
         publish()
 
-        val ctx = appContext ?: return
+        val ctx = appContext ?: run {
+            entry.lookedUp = true
+            publish()
+            return
+        }
         val number = call.details.handle?.schemeSpecificPart.orEmpty()
         scope.launch {
             val (info, photo) = withContext(Dispatchers.IO) {
@@ -110,6 +117,7 @@ object CallManager {
             if (entries[call] === entry) {
                 entry.info = info
                 entry.photo = photo
+                entry.lookedUp = true
                 publish()
             }
         }
@@ -190,6 +198,7 @@ object CallManager {
             isConference = conference,
             canMerge = call.conferenceableCalls.isNotEmpty() || d.can(Call.Details.CAPABILITY_MERGE_CONFERENCE),
             canReplyWithText = d.can(Call.Details.CAPABILITY_RESPOND_VIA_TEXT),
+            identifying = !entry.lookedUp,
         )
     }
 

@@ -9,6 +9,8 @@ import android.util.Log
 import androidx.core.app.ServiceCompat
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 
 /**
@@ -25,7 +27,18 @@ class CallService : InCallService() {
         super.onCreate()
         CallManager.attach(this)
         CallNotifications.createChannels(this)
-        scope.launch { CallManager.calls.collect { updateNotification(it) } }
+        scope.launch {
+            CallManager.calls.collectLatest { calls ->
+                // Post the call notification once we know who is calling. Android doesn't apply
+                // updates to a ringing call notification right away (the heads-up kept showing
+                // the number while the name was already known), so the first version must be
+                // right. The lookup takes a few milliseconds; collectLatest cancels this wait as
+                // soon as its result arrives, and the timeout keeps a slow lookup from delaying
+                // the call.
+                if (CallManager.primary(calls)?.identifying == true) delay(IDENTIFY_TIMEOUT_MS)
+                updateNotification(calls)
+            }
+        }
     }
 
     override fun onDestroy() {
@@ -85,8 +98,8 @@ class CallService : InCallService() {
         }
         try {
             getSystemService(NotificationManager::class.java).notify(CallNotifications.ID, notification)
-        } catch (e: SecurityException) {
-            Log.w(TAG, "Missing notification permission", e)
+        } catch (e: Exception) {
+            Log.w(TAG, "Could not post the call notification", e)
         }
     }
 
@@ -101,5 +114,6 @@ class CallService : InCallService() {
 
     private companion object {
         const val TAG = "CallService"
+        const val IDENTIFY_TIMEOUT_MS = 1000L
     }
 }

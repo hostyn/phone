@@ -6,6 +6,7 @@ import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.net.Uri
+import android.util.Log
 import android.provider.ContactsContract
 import android.provider.ContactsContract.PhoneLookup
 import android.telephony.PhoneNumberUtils
@@ -33,7 +34,8 @@ fun ContentResolver.lookupNumber(number: String): CallerInfo? {
             if (c.moveToFirst()) CallerInfo(c.getLong(0), c.getString(1) ?: number, c.getString(2), c.getInt(3), c.getString(4))
             else null
         }
-    } catch (_: Exception) {
+    } catch (e: Exception) {
+        Log.w("PhoneLookup", "Could not look up a number", e)
         null
     }
 }
