@@ -61,6 +61,7 @@ import dev.hostyn.phone.R
 import dev.hostyn.phone.data.BlockedNumbersRepository
 import dev.hostyn.phone.data.formatPhone
 import dev.hostyn.phone.data.lookupNumber
+import dev.hostyn.phone.data.preferNicknames
 import dev.hostyn.phone.ui.components.ContactAvatar
 import dev.hostyn.phone.ui.components.EmptyState
 import dev.hostyn.phone.ui.components.isDefaultDialer
@@ -131,7 +132,7 @@ fun BlockedNumbersScreen(blocked: BlockedNumbersRepository, onBack: () -> Unit) 
             ) {
                 itemsIndexed(items, key = { _, it -> it.id }) { i, item ->
                     val name by produceState<String?>(null, item.number) {
-                        value = withContext(Dispatchers.IO) { context.contentResolver.lookupNumber(item.number)?.name }
+                        value = withContext(Dispatchers.IO) { context.contentResolver.lookupNumber(item.number, context.preferNicknames)?.name }
                     }
                     val formatted = formatPhone(context, item.number)
                     SegmentedListItem(

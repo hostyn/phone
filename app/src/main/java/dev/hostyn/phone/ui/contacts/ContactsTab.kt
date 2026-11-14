@@ -78,7 +78,7 @@ import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.launch
 
 private fun ContactSummary.matches(q: String): Boolean {
-    if (name.foldAccents().contains(q)) return true
+    if (name.foldAccents().contains(q) || otherNames.any { it.foldAccents().contains(q) }) return true
     val digits = q.filter { it.isDigit() }
     return digits.length >= 3 && numbers.any { n -> n.filter { it.isDigit() }.contains(digits) }
 }

@@ -1,5 +1,6 @@
 package dev.hostyn.phone.data
 
+import java.text.Collator
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.SharingStarted
@@ -75,7 +76,7 @@ class ContactsRepository(private val context: Context) {
     private fun contactChanges(): Flow<Unit> =
         combine(
             changes(Contacts.CONTENT_URI),
-            snapshotFlow { Triple(settings.sortOrder, settings.nameFormat, settings.hiddenAccounts) },
+            snapshotFlow { listOf(settings.sortOrder, settings.nameFormat, settings.hiddenAccounts, settings.preferNicknames) },
         ) { _, _ -> }
 
     private val nameColumn get() =
@@ -113,10 +114,31 @@ class ContactsRepository(private val context: Context) {
             }
         }
 
+        // Nicknames ("Grandma"): shown instead of the name when the settings say so, and searchable.
+        val nicknames = HashMap<Long, String>()
+        resolver.query(
+            Data.CONTENT_URI,
+            arrayOf(Data.CONTACT_ID, Nickname.NAME, Data.RAW_CONTACT_ID),
+            "${Data.MIMETYPE} = ? AND ${Nickname.NAME} != ''",
+            arrayOf(Nickname.CONTENT_ITEM_TYPE),
+            "${Data.IS_SUPER_PRIMARY} DESC, ${Data.IS_PRIMARY} DESC",
+        )?.use { c ->
+            while (c.moveToNext()) {
+                if (hidden != null && c.getLong(2) in hidden.rawContacts) continue
+                val nick = c.getString(1)?.trim()
+                if (!nick.isNullOrEmpty()) nicknames.putIfAbsent(c.getLong(0), nick)
+            }
+        }
+        val preferNicknames = settings.preferNicknames
+        val visibleNames = visibleNames()
+
         val result = mutableListOf<ContactSummary>()
         resolver.query(
             Contacts.CONTENT_URI,
-            arrayOf(Contacts._ID, nameColumn, Contacts.PHOTO_THUMBNAIL_URI, Contacts.STARRED, Contacts.LOOKUP_KEY, sortColumn),
+            arrayOf(
+                Contacts._ID, nameColumn, Contacts.PHOTO_THUMBNAIL_URI, Contacts.STARRED, Contacts.LOOKUP_KEY, sortColumn,
+                Contacts.NAME_RAW_CONTACT_ID, Contacts.DISPLAY_NAME_PRIMARY, Contacts.DISPLAY_NAME_ALTERNATIVE,
+            ),
             "$nameColumn IS NOT NULL",
             null,
             "$sortColumn COLLATE LOCALIZED ASC",
@@ -124,18 +146,40 @@ class ContactsRepository(private val context: Context) {
             while (c.moveToNext()) {
                 val id = c.getLong(0)
                 if (hidden != null && id in hidden.contacts) continue
+                val name = c.getString(1)
+                val visible = visibleNames[c.getLong(6)]?.let { customName(it, c.getString(7), c.getString(8)) }
+                val nick = nicknames[id]
+                val shown = visible ?: nick?.takeIf { preferNicknames } ?: name
                 result += ContactSummary(
                     id = id,
-                    name = c.getString(1),
+                    name = shown,
                     photoUri = c.getString(2),
                     starred = c.getInt(3) == 1,
                     numbers = numbers[id].orEmpty(),
                     lookupKey = c.getString(4),
-                    sortKey = c.getString(5) ?: c.getString(1),
+                    sortKey = if (shown != name) shown else c.getString(5) ?: name,
+                    otherNames = listOfNotNull(name, nick).filter { !it.equals(shown, ignoreCase = true) }.distinct(),
                 )
             }
         }
+        // Sorted here rather than by the provider, so a nickname goes where its own first letter
+        // puts it (Grandma under G), in the same order with nicknames on or off.
+        val collator = Collator.getInstance().apply { strength = Collator.SECONDARY }
+        result.sortWith { a, b -> collator.compare(a.sortKey, b.sortKey) }
         return result
+    }
+
+    /** The display name (vCard FN) each raw contact's source gave it, by raw contact id. */
+    private fun visibleNames(): Map<Long, String> {
+        val out = HashMap<Long, String>()
+        resolver.query(
+            Data.CONTENT_URI,
+            arrayOf(Data.RAW_CONTACT_ID, StructuredName.DISPLAY_NAME),
+            "${Data.MIMETYPE} = ? AND ${StructuredName.DISPLAY_NAME} != ''",
+            arrayOf(StructuredName.CONTENT_ITEM_TYPE),
+            null,
+        )?.use { c -> while (c.moveToNext()) c.getString(1)?.let { out[c.getLong(0)] = it } }
+        return out
     }
 
     // --- Reading a contact ---
@@ -167,11 +211,13 @@ class ContactsRepository(private val context: Context) {
         var lookupKey: String? = null
         var ringtone: String? = null
         var toVoicemail = false
+        var fullNames = listOf<String?>()
         resolver.query(
             contactUri,
             arrayOf(
                 nameColumn, Contacts.PHOTO_URI, Contacts.STARRED, Contacts.NAME_RAW_CONTACT_ID,
                 Contacts.LOOKUP_KEY, Contacts.CUSTOM_RINGTONE, Contacts.SEND_TO_VOICEMAIL,
+                Contacts.DISPLAY_NAME_PRIMARY, Contacts.DISPLAY_NAME_ALTERNATIVE,
             ),
             null, null, null,
         )?.use { c ->
@@ -183,6 +229,7 @@ class ContactsRepository(private val context: Context) {
             lookupKey = c.getString(4)
             ringtone = c.getString(5)
             toVoicemail = c.getInt(6) == 1
+            fullNames = listOf(c.getString(7), c.getString(8))
         } ?: return null
 
         val rows = mutableListOf<Row>()
@@ -222,6 +269,11 @@ class ContactsRepository(private val context: Context) {
             rows.firstOrNull { it.rawId == nameRawId && it.mime == StructuredName.CONTENT_ITEM_TYPE }
                 ?.d(1)?.takeIf { it.isNotBlank() }?.let { displayName = it }
         }
+        // The source's own visible name ("Grandma Tere") wins over the one Android builds from the name.
+        val fullName = displayName
+        rows.firstOrNull { it.rawId == nameRawId && it.mime == StructuredName.CONTENT_ITEM_TYPE }
+            ?.let { customName(it.d(1), fullNames.getOrNull(0), fullNames.getOrNull(1)) }
+            ?.let { displayName = it }
         // Single-value fields come from the raw contact that names the contact, if it has them.
         val ordered = rows.sortedBy { if (it.rawId == nameRawId) 0 else 1 }
 
@@ -316,6 +368,7 @@ class ContactsRepository(private val context: Context) {
             nameRawContactId = nameRawId,
             rawContactIds = rawIds.toList(),
             displayName = displayName,
+            fullName = fullName,
             photoUri = photo,
             starred = starred,
             ringtone = ringtone,

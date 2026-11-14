@@ -15,6 +15,7 @@ import dev.hostyn.phone.data.ContactField
 import dev.hostyn.phone.data.formatPhone
 import dev.hostyn.phone.data.loadContactPhoto
 import dev.hostyn.phone.data.lookupNumber
+import dev.hostyn.phone.data.preferNicknames
 import dev.hostyn.phone.ui.components.phoneLabel
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -111,7 +112,7 @@ object CallManager {
         val number = call.details.handle?.schemeSpecificPart.orEmpty()
         scope.launch {
             val (info, photo) = withContext(Dispatchers.IO) {
-                val i = ctx.contentResolver.lookupNumber(number)
+                val i = ctx.contentResolver.lookupNumber(number, ctx.preferNicknames)
                 i to i?.let { ctx.contentResolver.loadContactPhoto(it.contactId) }
             }
             if (entries[call] === entry) {

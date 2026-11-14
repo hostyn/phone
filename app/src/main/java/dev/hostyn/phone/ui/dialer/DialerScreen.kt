@@ -113,7 +113,7 @@ private fun suggest(input: String, contacts: List<ContactSummary>): List<Suggest
     val byNumber = mutableListOf<Suggestion>()
     for (c in contacts) {
         if (c.numbers.isEmpty()) continue
-        val words = c.name.split(' ', '-', '.').filter { it.isNotBlank() }
+        val words = (listOf(c.name) + c.otherNames).flatMap { it.split(' ', '-', '.') }.filter { it.isNotBlank() }
         val nameMatch = words.any { t9(it).startsWith(digits) }
         if (nameMatch) {
             byName += Suggestion(c, c.numbers.first())

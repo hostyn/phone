@@ -87,6 +87,7 @@ import dev.hostyn.phone.data.ContactsRepository
 import dev.hostyn.phone.ui.components.ContactAvatar
 import dev.hostyn.phone.ui.components.rememberCallLauncher
 import dev.hostyn.phone.data.formatPhone
+import dev.hostyn.phone.data.preferNicknames
 import dev.hostyn.phone.ui.components.email
 import dev.hostyn.phone.ui.components.emailLabel
 import dev.hostyn.phone.ui.components.phoneLabel
@@ -152,6 +153,7 @@ fun DetailScreen(
     val state by remember(contactId) { repo.observeContact(contactId) }.collectAsState(initial = Loading)
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
+    val preferNicknames = context.preferNicknames
     val clipboard = LocalClipboardManager.current
     val placeCall = rememberCallLauncher()
     val messagingButtons = rememberMessagingButtons()
@@ -276,6 +278,8 @@ fun DetailScreen(
             Box(Modifier.fillMaxSize().padding(padding), Alignment.Center) { LoadingIndicator() }
             return@Scaffold
         }
+        val nickname = contact.data.nickname.value.trim().takeIf { it.isNotEmpty() }
+        val shownName = if (contact.displayName != contact.fullName || !preferNicknames || nickname == null) contact.displayName else nickname
         Column(
             Modifier
                 .fillMaxSize()
@@ -286,10 +290,10 @@ fun DetailScreen(
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             Spacer(Modifier.height(8.dp))
-            ContactAvatar(contact.displayName, contact.photoUri, contact.id, size = 128.dp)
+            ContactAvatar(shownName, contact.photoUri, contact.id, size = 128.dp)
             Spacer(Modifier.height(20.dp))
             Text(
-                contact.displayName.ifBlank { stringResource(R.string.no_name) },
+                shownName.ifBlank { stringResource(R.string.no_name) },
                 style = MaterialTheme.typography.headlineMediumEmphasized,
                 textAlign = TextAlign.Center,
                 modifier = Modifier.padding(horizontal = 24.dp),
@@ -299,7 +303,10 @@ fun DetailScreen(
                 listOf(listOf(o.title, o.department).filter { it.isNotBlank() }.joinToString(", "), o.company)
                     .filter { it.isNotBlank() }.joinToString(" · ")
             }
-            listOf(data.nickname.value.takeIf { it.isNotBlank() }?.let { "“${it.trim()}”" }, org.ifBlank { null })
+            // Under a visible name or nickname goes the full name, and a nickname not shown yet in quotes.
+            val fullName = contact.fullName.takeIf { it.isNotBlank() && !it.equals(shownName, ignoreCase = true) }
+            val quoted = nickname?.takeIf { n -> listOfNotNull(shownName, fullName).none { it.equals(n, ignoreCase = true) } }?.let { "“$it”" }
+            listOf(fullName, quoted, org.ifBlank { null })
                 .filterNotNull()
                 .forEach { line ->
                     Spacer(Modifier.height(4.dp))

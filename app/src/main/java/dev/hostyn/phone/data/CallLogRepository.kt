@@ -1,5 +1,7 @@
 package dev.hostyn.phone.data
 
+import kotlinx.coroutines.flow.combine
+import androidx.compose.runtime.snapshotFlow
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.SharingStarted
@@ -45,7 +47,9 @@ class CallLogRepository(private val context: Context) {
 
 
     fun observe(missedOnly: Boolean = false): Flow<List<RecentCall>> =
-        changes().map { query(missedOnly) }.flowOn(Dispatchers.IO)
+        // Names also follow the nickname setting.
+        combine(changes(), snapshotFlow { context.preferNicknames }) { _, _ -> }
+            .map { query(missedOnly) }.flowOn(Dispatchers.IO)
 
     private val cacheScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private val all = observe(false).stateIn(cacheScope, SharingStarted.WhileSubscribed(60_000), null)
@@ -126,7 +130,7 @@ class CallLogRepository(private val context: Context) {
         val cache = HashMap<String, CallerInfo?>()
         fun info(number: String): CallerInfo? =
             if (cache.containsKey(number)) cache[number]
-            else resolver.lookupNumber(number).also { cache[number] = it }
+            else resolver.lookupNumber(number, context.preferNicknames).also { cache[number] = it }
 
         val out = mutableListOf<RecentCall>()
         for (r in raw) {
@@ -177,7 +181,7 @@ data class CallEntry(val id: Long, val number: String, val type: Int, val date: 
 data class MissedCall(val number: String, val date: Long, val info: CallerInfo?)
 
 /** Missed calls the user hasn't seen yet, newest first. */
-fun ContentResolver.newMissedCalls(): List<MissedCall> {
+fun ContentResolver.newMissedCalls(preferNickname: Boolean = false): List<MissedCall> {
     val out = mutableListOf<MissedCall>()
     try {
         query(
@@ -191,7 +195,7 @@ fun ContentResolver.newMissedCalls(): List<MissedCall> {
             while (c.moveToNext() && out.size < 50) {
                 val hidden = c.getInt(2) != Calls.PRESENTATION_ALLOWED
                 val number = if (hidden) "" else c.getString(0).orEmpty()
-                val info = cache.getOrPut(number) { lookupNumber(number) }
+                val info = cache.getOrPut(number) { lookupNumber(number, preferNickname) }
                 out += MissedCall(number, c.getLong(1), info)
             }
         }

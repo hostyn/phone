@@ -18,6 +18,7 @@ import dev.hostyn.phone.data.formatPhone
 import dev.hostyn.phone.data.loadContactPhoto
 import dev.hostyn.phone.data.markMissedCallsRead
 import dev.hostyn.phone.data.newMissedCalls
+import dev.hostyn.phone.data.preferNicknames
 import kotlin.concurrent.thread
 
 /**
@@ -51,7 +52,7 @@ object MissedCallNotifier {
 
     /** Builds the notification from the call log (runs off the main thread). */
     fun show(context: Context, telecomCount: Int, telecomNumber: String?) {
-        val calls = context.contentResolver.newMissedCalls().ifEmpty {
+        val calls = context.contentResolver.newMissedCalls(context.preferNicknames).ifEmpty {
             // The call log may not be written yet: fall back to what Telecom told us.
             listOf(MissedCall(telecomNumber.orEmpty(), System.currentTimeMillis(), null))
         }

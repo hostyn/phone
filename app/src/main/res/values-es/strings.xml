@@ -254,6 +254,8 @@
     <string name="contacts_settings">Contactos</string>
     <string name="sort_by">Ordenar por</string>
     <string name="name_format">Formato del nombre</string>
+    <string name="prefer_nicknames">Mostrar apodos</string>
+    <string name="prefer_nicknames_summary">«Abuela» en vez del nombre completo, si el contacto tiene apodo</string>
     <string name="sort_first_name">Nombre</string>
     <string name="sort_last_name">Apellido</string>
     <string name="first_name_first">Nombre primero</string>

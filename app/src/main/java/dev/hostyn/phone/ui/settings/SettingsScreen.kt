@@ -46,6 +46,7 @@ import androidx.compose.material.icons.rounded.Badge
 import androidx.compose.material.icons.rounded.Block
 import androidx.compose.material.icons.rounded.DarkMode
 import androidx.compose.material.icons.rounded.Download
+import androidx.compose.material.icons.rounded.Face
 import androidx.compose.material.icons.rounded.Folder
 import androidx.compose.material.icons.rounded.History
 import androidx.compose.material.icons.rounded.Code
@@ -266,6 +267,13 @@ fun SettingsScreen(
                         onClick = {
                             choice = choiceOf(R.string.name_format, NameOrder.entries, settings.nameFormat, { context.getString(formatLabel(it)) }, settings::updateNameFormat)
                         },
+                    )
+                    toggle(
+                        icon = Icons.Rounded.Face,
+                        title = stringResource(R.string.prefer_nicknames),
+                        summary = stringResource(R.string.prefer_nicknames_summary),
+                        checked = settings.preferNicknames,
+                        onChange = settings::updatePreferNicknames,
                     )
                     setting(
                         icon = Icons.Rounded.Download,

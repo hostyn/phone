@@ -9,6 +9,8 @@ data class ContactSummary(
     val lookupKey: String? = null,
     /** Text the list is sorted and grouped by (follows the sort order setting). */
     val sortKey: String = name,
+    /** Other names search also finds: the full name when [name] is a visible name or nickname, the nickname. */
+    val otherNames: List<String> = emptyList(),
 )
 
 /*
@@ -143,7 +145,10 @@ data class ContactDetail(
     val lookupKey: String?,
     val nameRawContactId: Long,
     val rawContactIds: List<Long>,
+    /** The name to show: the contact's own visible name (vCard FN) when it has one, else [fullName]. */
     val displayName: String,
+    /** The name Android puts together from first name and surnames. */
+    val fullName: String = displayName,
     val photoUri: String?,
     val starred: Boolean,
     val ringtone: String?,

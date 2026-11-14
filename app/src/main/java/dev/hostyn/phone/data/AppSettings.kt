@@ -41,6 +41,11 @@ class AppSettings(context: Context) {
         private set
     fun updateNameFormat(value: NameOrder) { nameFormat = value; prefs.edit().putString("name_format", value.name).apply() }
 
+    /** Show a contact's nickname ("Grandma") instead of their name, wherever the name appears. */
+    var preferNicknames by mutableStateOf(prefs.getBoolean("prefer_nicknames", true))
+        private set
+    fun updatePreferNicknames(value: Boolean) { preferNicknames = value; prefs.edit().putBoolean("prefer_nicknames", value).apply() }
+
     /** Accounts ([ContactAccount.key]) whose contacts the app doesn't show. */
     var hiddenAccounts by mutableStateOf(prefs.getStringSet("hidden_accounts", null).orEmpty().toSet())
         private set

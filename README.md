@@ -38,6 +38,7 @@ It replaces both the system Contacts and Phone apps: it can be set as the defaul
 - Photo, favorite, custom ringtone and send-to-voicemail per contact.
 - Choose the account when creating a contact (device, Google…).
 - Favorites row, fast scroller, and sort/display by first or last name.
+- Contacts are shown by the name their account gives them ("Grandma Tere", not only first name and surnames) or, if you like, by their nickname; search finds any of their names.
 - vCard 3.0 import, export and sharing. Android-specific fields are kept as vCard extensions, so an export → import round trip loses nothing.
 
 ### Automatic backup
