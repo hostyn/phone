@@ -3,9 +3,12 @@ package dev.hostyn.phone.data
 data class ContactSummary(
     val id: Long,
     val name: String,
+    /** Thumbnail (about 96 px), for small avatars in lists. */
     val photoUri: String?,
     val starred: Boolean,
     val numbers: List<String> = emptyList(),
+    /** Full-size photo when the contact has one, else the thumbnail: for bigger avatars. */
+    val largePhotoUri: String? = photoUri,
     val lookupKey: String? = null,
     /** Text the list is sorted and grouped by (follows the sort order setting). */
     val sortKey: String = name,

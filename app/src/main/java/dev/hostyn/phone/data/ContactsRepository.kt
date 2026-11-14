@@ -138,6 +138,7 @@ class ContactsRepository(private val context: Context) {
             arrayOf(
                 Contacts._ID, nameColumn, Contacts.PHOTO_THUMBNAIL_URI, Contacts.STARRED, Contacts.LOOKUP_KEY, sortColumn,
                 Contacts.NAME_RAW_CONTACT_ID, Contacts.DISPLAY_NAME_PRIMARY, Contacts.DISPLAY_NAME_ALTERNATIVE,
+                Contacts.PHOTO_URI,
             ),
             "$nameColumn IS NOT NULL",
             null,
@@ -159,6 +160,7 @@ class ContactsRepository(private val context: Context) {
                     lookupKey = c.getString(4),
                     sortKey = if (shown != name) shown else c.getString(5) ?: name,
                     otherNames = listOfNotNull(name, nick).filter { !it.equals(shown, ignoreCase = true) }.distinct(),
+                    largePhotoUri = c.getString(9) ?: c.getString(2),
                 )
             }
         }

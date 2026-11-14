@@ -330,7 +330,8 @@ private fun FavoritesRow(favorites: List<ContactSummary>, onOpen: (Long) -> Unit
                     .clickable { origin.key = key; onOpen(c.id) }
                     .padding(vertical = 8.dp, horizontal = 4.dp),
             ) {
-                ContactAvatar(c.name, c.photoUri, c.id, size = 60.dp)
+                // Too big for the thumbnail (about 96 px), which would look blurry.
+                ContactAvatar(c.name, c.largePhotoUri, c.id, size = 60.dp)
                 Spacer(Modifier.height(8.dp))
                 Text(
                     shortName(c.name, (LocalContext.current.applicationContext as PhoneApp).settings.nameFormat),
